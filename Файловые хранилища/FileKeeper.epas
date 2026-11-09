@@ -1,0 +1,1089 @@
+// ============================================
+// Расширение "FileKeeper" v0.1
+// Основано на расширении "DX Хранилище файлов"
+//
+
+{@module
+Author=Pozharskiy1991
+Version=0.1
+Description=<html>
+<b>FileKeeper — файловое хранилище DataExpress</b><br><br>
+
+Расширение добавляет на форму кнопки для работы с файловым хранилищем.
+Позволяет прикреплять файлы к записям, открывать хранилище,
+вести учёт файлов и управлять ими.<br><br>
+
+<b>✅ Возможности:</b><br>
+• Добавление одного или нескольких файлов к записи<br>
+• Открытие хранилища с просмотром всех файлов записи<br>
+• Счётчик файлов на кнопке (включается/отключается)<br>
+• Диалог переименования файла перед добавлением<br>
+• Проверка дубликатов (по имени и содержимому)<br>
+• Автоматическое создание уникальных имён при конфликтах<br>
+• Удаление исходных файлов после копирования (опционально)<br>
+• Фильтрация файлов по расширениям<br>
+• Динамический путь: базовая папка + подпапка (выражение)<br>
+• Безопасные имена: недопустимые символы заменяются на "_"<br>
+• Папка по умолчанию: "Хранилище файлов" в рабочей директории<br>
+• Обновление запросов после операций с файлами<br>
+• Сохранение позиции в запросе<br><br>
+
+<b>🔧 Настройка:</b><br>
+1. Добавьте действие <b>"Настройка хранилища файлов"</b> на форму<br>
+2. В таблице укажите кнопки и их действия:<br>
+   • <b>Добавить файл</b> — кнопка для добавления файлов<br>
+   • <b>Открыть хранилище</b> — кнопка для просмотра хранилища<br>
+   • <b>Счётчик</b> — показывать ли количество файлов<br>
+3. Настройте путь к папке (базовая папка + выражение подпапки)<br>
+4. При необходимости укажите выражение для имени файла<br><br>
+
+<b>📂 Путь к папке назначения:</b><br>
+• <b>Базовая папка</b> — основная папка хранения (выбирается вручную)<br>
+• <b>Подпапка (выражение)</b> — динамическая часть пути<br>
+  Примеры: <code>[Год]\[Месяц]</code>, <code>[Контрагент]</code><br>
+• Если базовая папка не указана — создаётся "Хранилище файлов"<br>
+  в рабочей директории программы<br><br>
+
+<b>📝 Имя файла:</b><br>
+• Можно задать выражение для формирования имени<br>
+• Недопустимые символы (\ / : * ? " &lt; &gt; |) заменяются на "_"<br>
+• Можно оставить исходное расширение файла<br><br>
+
+<b>🛡️ Безопасность:</b><br>
+• Все пути и имена файлов очищаются от недопустимых символов<br>
+• При конфликте имён создаётся уникальное имя (индекс в скобках)<br>
+• Проверка на занятость файла другим процессом<br>
+• Безопасная работа с отсутствующими полями формы<br><br>
+
+<b>📊 Дополнительно:</b><br>
+• Обновление выбранного запроса после операций<br>
+• Сохранение позиции в запросе после обновления<br>
+• Поддержка представлений vtGridOnly<br>
+• Автоматическое удаление файлов при отмене редактирования<br><br>
+
+<b>💡 Основано на расширении "DX Хранилище файлов".</b>
+</html>
+@}
+
+// ============================================
+// КОНСТАНТЫ
+// ============================================
+const
+  // ========================================
+  ImgScan  = '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';
+  ImgRecognize = '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';
+  ImgCopy = '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';
+// ============================================
+
+  LE2 = LineEnding + LineEnding;
+
+  MSG_CAPTION = 'DX Хранилище файлов';
+  MSG_WARNING = 'Внимание';
+  MSG_ERROR_FOLDER = 'Ошибка создания папок по указанному пути:';
+  MSG_HINT_FOLDER = '1. Проверьте нет ли ошибок в пути.' + LineEnding +
+                    '2. Проверьте правильность составленного выражения.' + LineEnding +
+                    '3. Проверьте доступность сетевой папки (если папка сетевая).';
+  MSG_FILE_NOT_FOUND = 'Файл не найден: ';
+  MSG_FILE_SKIPPED_OLDER = 'Файл пропущен: ';
+  MSG_FILE_SKIPPED_SAME = 'Файл пропущен: ';
+  MSG_HINT_OLDER = '. В хранилище есть его более поздняя версия!';
+  MSG_HINT_SAME = '. В хранилище есть такая версия файла!';
+  MSG_CANNOT_REPLACE = 'Не удалось заменить в хранилище файл ';
+  MSG_FILE_BUSY = '. Файл занят другим процессом или нет прав на запись.';
+  MSG_COPY_ERROR = 'Не удалось скопировать файл ';
+  MSG_DELETE_ERROR = 'Не удалось удалить файл ';
+  MSG_COPY_RESULT = 'Не все файлы были скопированы в хранилище.';
+  MSG_DELETE_RESULT = 'Не все файлы были удалены после копирования.';
+  MSG_SAVE_NEW_RECORD = 'Прежде чем добавить файлы в хранилище, Вы должны сохранить новую запись.';
+  MSG_SAVE_AND_ADD = 'Сохранить новую запись и добавить файлы?';
+  MSG_SAVE_AND_OPEN = 'Сохранить новую запись и открыть хранилище?';
+  MSG_SAVE_BEFORE_OPEN = 'Прежде чем открыть хранилище, Вы должны сохранить новую запись.';
+  MSG_RENAME_CAPTION = 'Изменение имени файла';
+  MSG_RENAME_PROMPT = 'Введите новое имя файла:';
+  MSG_RENAME_EMPTY = 'Имя файла не может быть пустым.';
+  MSG_PROGRESS_COPY = 'Идёт копирование...';
+  MSG_OPEN_FILE_TITLE = 'Выберите файлы для загрузки в базу данных';
+
+  DEFAULT_STORAGE_FOLDER = 'Хранилище файлов';
+
+  INVALID_FILE_CHARS = '/:*?"<>|';
+  INVALID_PATH_CHARS = '/*?"<>|';
+
+  FIELD_DESCRIPTION = 'Описание записи';
+  FIELD_SOURCE = 'Источник';
+  FIELD_FILE = 'Файл';
+  FIELD_DATE = 'Дата';
+  FIELD_TIME = 'Время';
+  FIELD_FOLDER_PATH = 'Путь к папке';
+  FIELD_FILE_NAME = 'Имя файла';
+  FIELD_STORAGE_METHOD = 'Способ хранения';
+  FIELD_FORM_ID = 'ID формы';
+  FIELD_RECORD_ID = 'ID записи';
+  FIELD_FORM = 'Форма';
+
+  STORAGE_DB = 'База данных';
+  STORAGE_FOLDER = 'Папка';
+  STORAGE_LINK = 'Ссылка';
+
+  STORE_FORM_NAME = 'FileStore';
+  STORE_FILE_TABLE = 'file';
+  STORE_BUTTON_DISABLE = 'dxButton9';
+  STORE_PAGECTRL = 'dxPageControl1';
+
+  ACTION_ADD_FILE = 'Добавить файл';
+  ACTION_OPEN_STORE = 'Открыть хранилище';
+
+// ============================================
+// ★ ФУНКЦИЯ: ЗАМЕНА НЕДОПУСТИМЫХ СИМВОЛОВ ★
+// ============================================
+function SanitizeFileName(const AStr: string; IsPath: Boolean): string;
+var
+  i: Integer;
+  Ch: Char;
+  InvalidChars: string;
+begin
+  Result := '';
+  if AStr = '' then Exit;
+
+  if IsPath then
+    InvalidChars := INVALID_PATH_CHARS
+  else
+    InvalidChars := INVALID_FILE_CHARS;
+
+  for i := 1 to Length(AStr) do
+  begin
+    Ch := AStr[i];
+    if Ord(Ch) < 32 then Continue;
+    if Pos(Ch, InvalidChars) > 0 then
+      Result := Result + '_'
+    else
+      Result := Result + Ch;
+  end;
+end;
+
+// ============================================
+// ★ ФУНКЦИЯ: ПОЛУЧЕНИЕ ПОЛНОГО ПУТИ НАЗНАЧЕНИЯ ★
+// ============================================
+function BuildDestFolder(const BaseFolder, SubFolderExpr: string; Fm: TdxForm): string;
+var
+  SubFolder: string;
+begin
+  if BaseFolder <> '' then
+    Result := BaseFolder
+  else
+    Result := GetCurrentDir + '\' + DEFAULT_STORAGE_FOLDER;
+
+  Result := SanitizeFileName(Result, True);
+  Result := IncludeTrailingPathDelimiter(Result);
+
+  if Trim(SubFolderExpr) <> '' then
+  begin
+    try
+      SubFolder := VarToStr(EvalExpr(SubFolderExpr, Fm));
+    except
+      SubFolder := '';
+    end;
+
+    if Trim(SubFolder) <> '' then
+    begin
+      SubFolder := SanitizeFileName(SubFolder, True);
+      Result := Result + SubFolder;
+      Result := IncludeTrailingPathDelimiter(Result);
+    end;
+  end;
+end;
+
+// ============================================
+// ★ ФУНКЦИЯ: БЕЗОПАСНАЯ УСТАНОВКА ПОЛЯ ФОРМЫ ★
+// ============================================
+procedure SafeSetField(Fm: TdxForm; const FieldName: string; const Value: Variant);
+begin
+  try
+    Fm.Fields[FieldName] := Value;
+  except
+  end;
+end;
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================
+
+function ShowProgress(const AMsg, AImgStr: String; W, H: Integer): TForm;
+var
+  Img: TdxImage;
+begin
+  Img := nil;
+  Result := TForm.Create(Application);
+  with Result do
+  begin
+    BorderStyle := bsNone;
+    if W = 0 then W := 300;
+    if H = 0 then H := 200;
+    Width := Scale96ToScreen(W);
+    Height := Scale96ToScreen(H);
+    Font.Name := 'Verdana';
+    Font.Size := 10;
+    Position := poMainFormCenter;
+    FormStyle := fsStayOnTop;
+    Color := clWhite;
+  end;
+  with TShape.Create(Result) do
+  begin
+    Parent := Result;
+    Align := alClient;
+    Brush.Color := Result.Color;
+  end;
+  if AImgStr <> '' then
+  begin
+    Img := TdxImage.Create(Result);
+    with Img do
+    begin
+      Parent := Result;
+      LoadFromStringBase64(AImgStr);
+      Width := Bitmap.Width;
+      Height := Bitmap.Height;
+      Left := Result.Width div 2 - Width div 2;
+      Top := Result.Height div 2 - Height div 2;
+      if AMsg <> '' then Top := Top - Round(Abs(Result.Font.Height) * 2);
+    end;
+  end;
+  if AMsg <> '' then
+  begin
+    with TLabel.Create(Result) do
+    begin
+      Parent := Result;
+      AutoSize := False;
+      WordWrap := True;
+      Alignment := taCenter;
+      if Img = nil then
+      begin
+        Align := alClient;
+        BorderSpacing.Around := Scale96ToScreen(4);
+        Layout := tlCenter;
+      end
+      else
+      begin
+        Left := Scale96ToScreen(4);
+        Top := Img.Top + Img.Height + Round(Abs(Result.Font.Height));
+        Width := Result.Width - Scale96ToScreen(8);
+        Height := Result.Height - Top - Scale96ToScreen(4);
+      end;
+      Caption := AMsg;
+    end;
+  end;
+  Result.Show;
+  Application.ProcessMessages;
+end;
+
+function CreateStore_Fm: TdxForm;
+var
+  Btn: TdxButton;
+  PageCtrl: TdxPageControl;
+begin
+  Result := TdxForm.Create(STORE_FORM_NAME);
+  Btn := TdxButton(Result.FindComponent(STORE_BUTTON_DISABLE));
+  if Btn <> nil then Btn.Enabled := False;
+  PageCtrl := TdxPageControl(Result.FindComponent(STORE_PAGECTRL));
+  if (PageCtrl <> nil) and (PageCtrl.PageCount > 1) then
+    PageCtrl.Pages[1].TabVisible := False;
+end;
+
+function TryForceDirectories(const DestFolder: String): Boolean;
+begin
+  Result := ForceDirectories(DestFolder);
+  if not Result then
+    MessageDlg(MSG_CAPTION, MSG_ERROR_FOLDER +
+      LineEnding + LineEnding + DestFolder + LineEnding + LineEnding +
+      MSG_HINT_FOLDER, mtError, [mbAbort]);
+end;
+
+function MakeUniqueFileName(DestFileName: String): String;
+var
+  i: Integer;
+  FlNm, FlExt: String;
+begin
+  Result := DestFileName;
+  if not FileExists(DestFileName) then Exit;
+  FlExt := ExtractFileExt(DestFileName);
+  FlNm := ChangeFileExt(DestFileName, '');
+  i := 1;
+  while True do
+  begin
+    Result := FlNm + '(' + IntToStr(i) + ')' + FlExt;
+    if not FileExists(Result) then Break else Inc(i);
+  end;
+end;
+
+function CanWriteFile(const FileName: String): Boolean;
+begin
+  try
+    TFileStream.Create(FileName, fmOpenWrite).Free;
+    Result := True;
+  except
+    Result := False;
+  end;
+end;
+
+procedure MyCopyFile(const SrcFileName, DestFileName: String);
+var
+  SrcSt, DestSt: TFileStream;
+  Buf: String;
+  BufSize, ReadBytes: Integer;
+  FileChanged: LongInt;
+begin
+  ForceDirectories(ExtractFilePath(DestFileName));
+  SrcSt := nil; DestSt := nil;
+  FileChanged := FileAge(SrcFileName);
+  BufSize := 1024 * 1024;
+  SetLength(Buf, BufSize);
+  try
+    SrcSt := TFileStream.Create(SrcFileName, fmOpenRead + fmShareDenyNone);
+    DestSt := TFileStream.Create(DestFileName, fmCreate);
+    repeat
+      ReadBytes := SrcSt.Read(Buf, BufSize);
+      DestSt.Write(Buf, ReadBytes);
+    until ReadBytes < BufSize;
+  finally
+    if SrcSt <> nil then SrcSt.Free;
+    if DestSt <> nil then DestSt.Free;
+  end;
+  FileSetDate(DestFileName, FileChanged);
+end;
+
+type
+  TCheckFileResult = (cfSrcNotFound, cfSrcOlder, cfSrcSame, cfSrcNewer, cfSrcNew);
+
+function FindSourceFile(FilesTbl: TdxForm; const FileNameOnly, FullPath: String; AllowDuplicates: Boolean): Boolean;
+var
+  Src: String;
+begin
+  if AllowDuplicates then begin Result := False; Exit; end;
+  Result := False;
+  with FilesTbl do
+  begin
+    DisableScrollEvents;
+    DisableControls;
+    try
+      MoveFirst;
+      while not Eof do
+      begin
+        Src := AsS[FIELD_SOURCE];
+        if (Utf8CompareText(ExtractFileName(Src), FileNameOnly) = 0) or
+           (Utf8CompareText(Src, FullPath) = 0) then
+        begin Result := True; Exit; end;
+        MoveNext;
+      end;
+    finally
+      EnableControls;
+      EnableScrollEvents;
+    end;
+  end;
+end;
+
+function CheckFile(FilesTbl: TdxForm; const SrcFileName: String; AllowDuplicates: Integer): TCheckFileResult;
+var
+  SrcChanged, DestChanged: Longint;
+  DestFileName: String;
+begin
+  Result := cfSrcNew;
+  SrcChanged := FileAge(SrcFileName);
+  if SrcChanged = -1 then
+    Result := cfSrcNotFound
+  else if FindSourceFile(FilesTbl, ExtractFileName(SrcFileName), SrcFileName, AllowDuplicates = 1) then
+  begin
+    DestFileName := FilesTbl.Files[FIELD_FILE].SourceFileName;
+    DestChanged := FileAge(DestFileName);
+    if DestChanged = -1 then
+    else if SrcChanged < DestChanged then Result := cfSrcOlder
+    else if SrcChanged = DestChanged then Result := cfSrcSame
+    else Result := cfSrcNewer
+  end;
+end;
+
+procedure CreateRecordInTable(FilesTbl: TdxForm; SrcFileName, DestFileName: String; AllowDuplicates: Integer);
+var
+  FileComp: TdxFile;
+  DT: TDateTime;
+  FileTime: LongInt;
+begin
+  with FilesTbl do
+  begin
+    FileComp := Files[FIELD_FILE];
+    if not FindSourceFile(FilesTbl, ExtractFileName(SrcFileName), SrcFileName, AllowDuplicates = 1) then
+      Append
+    else
+      Edit;
+    FileTime := FileAge(DestFileName);
+    if FileTime <> -1 then DT := FileDateToDateTime(FileTime) else DT := Now;
+    Fields[FIELD_DATE] := DT;
+    Fields[FIELD_TIME] := DT;
+    FileComp.LoadFromFile(DestFileName);
+    Fields[FIELD_SOURCE] := SrcFileName;
+    Fields[FIELD_FOLDER_PATH] := ExtractFilePath(DestFileName);
+    Fields[FIELD_FILE_NAME] := ExtractFileName(DestFileName);
+    case FileComp.StorageType of
+      0: Fields[FIELD_STORAGE_METHOD] := STORAGE_DB;
+      1: Fields[FIELD_STORAGE_METHOD] := STORAGE_FOLDER;
+      2: Fields[FIELD_STORAGE_METHOD] := STORAGE_LINK;
+    end;
+    Post;
+  end;
+end;
+
+// ============================================================
+// ФУНКЦИЯ: ДИАЛОГ ИЗМЕНЕНИЯ ИМЕНИ ФАЙЛА
+// ============================================================
+function ShowRenameDialog(const DefaultFileName: String; var NewFileName: String): Boolean;
+var
+  Frm: TForm;
+  Lbl: TLabel;
+  Edt: TEdit;
+  BtnOk, BtnCancel: TButton;
+begin
+  Result := False;
+  NewFileName := DefaultFileName;
+  Frm := TForm.Create(Application);
+  try
+    Frm.Caption := MSG_RENAME_CAPTION;
+    Frm.Width := 380; Frm.Height := 130;
+    Frm.Position := poMainFormCenter;
+    Frm.BorderIcons := [biSystemMenu];
+    Frm.BorderStyle := bsDialog;
+    Lbl := TLabel.Create(Frm); Lbl.Parent := Frm;
+    Lbl.Left := 12; Lbl.Top := 12; Lbl.Width := 350;
+    Lbl.Caption := MSG_RENAME_PROMPT;
+    Edt := TEdit.Create(Frm); Edt.Parent := Frm;
+    Edt.Left := 12; Edt.Top := 34; Edt.Width := 350; Edt.Height := 26;
+    Edt.Text := DefaultFileName; Edt.SelectAll;
+    BtnOk := TButton.Create(Frm); BtnOk.Parent := Frm;
+    BtnOk.Caption := 'OK'; BtnOk.Left := 198; BtnOk.Top := 72;
+    BtnOk.Width := 80; BtnOk.ModalResult := mrOk;
+    BtnCancel := TButton.Create(Frm); BtnCancel.Parent := Frm;
+    BtnCancel.Caption := 'Отмена'; BtnCancel.Left := 288; BtnCancel.Top := 72;
+    BtnCancel.Width := 80; BtnCancel.ModalResult := mrCancel;
+    if Frm.ShowModal = mrOk then
+    begin
+      NewFileName := Trim(Edt.Text);
+      if NewFileName <> '' then Result := True
+      else MessageDlg(MSG_WARNING, MSG_RENAME_EMPTY, mtWarning, [mbOk]);
+    end;
+  finally
+    Frm.Free;
+  end;
+end;
+
+// ============================================================
+// ДЕЙСТВИЕ: Настройка хранилища файлов
+// ============================================================
+{@action
+Id=F8E7D3C2-A1B0-49E8-9F7D-6CW74A3E2F1D
+Target=form
+OrigName=FileStore_Setup
+Name=Настройка хранилища файлов
+Group=FileStore
+UI=
+  <divider caption="Настройка кнопок хранилища" />
+  <grid name="buttons_config" caption="Кнопки хранилища" height="150">
+    <list name="action_type" caption="Действие" items="Добавить файл;Открыть хранилище" width="150" required="1"/>
+    <component name="button" caption="Кнопка" filter="tdxbutton" required="1"/>
+    <list name="show_counter" caption="Счётчик" items="Да;Нет" defaultvalue="Да" width="80" texthint="Показывать количество файлов на кнопке."/>
+  </grid>
+  <divider caption="Общие настройки" />
+  <expr name="DescrExpr" caption="Описание записи в хранилище (выражение)" texthint="Будет подставляться в поле 'Описание записи'"/>
+  <divider caption="Путь к папке назначения" />
+  <folder name="BaseFolder" caption="Базовая папка" texthint="Выберите основную папку для хранения файлов. Если не указана — создаётся папка &quot;Хранилище файлов&quot; в рабочей директории."/>
+  <expr name="SubFolderExpr" caption="Подпапка (выражение)" texthint="Динамическая подпапка. Например: [Год]\[Месяц] или [Контрагент]. Недопустимые символы заменяются на &quot;_&quot;."/>
+  <divider caption="Имя файла" />
+  <expr name="FileNameExpr" caption="Имя нового файла (выражение)" texthint="Имя файла в хранилище. Недопустимые символы (\ / : * ? &quot; &lt; &gt; |) заменяются на &quot;_&quot;."/>
+  <checkbox name="DefaultExt" caption="Исходное расширение в новом имени файла" texthint="Добавлять расширение исходного файла"/>
+  <divider caption="Дополнительные настройки" />
+  <checkbox name="DelAfterCopy" caption="Удалять исходные файлы" texthint="Удалять файлы после копирования"/>
+  <checkbox name="ShowRenameDialog" caption="Диалоговое окно изменения имени файла" texthint="Показывать диалог для изменения имени файла перед добавлением"/>
+  <text name="FileTypes" caption="Список расширений файлов" texthint="Например: *.jpg;*.png;*.pdf"/>
+  <checkbox name="AllowDuplicates" caption="Разрешить добавление дубликатов" texthint="Позволяет добавлять файлы с одинаковыми именами"/>
+  <checkbox name="EditOnAction" caption="Редактировать текущую запись при нажатии" texthint="Автоматически переводить запись в режим редактирования"/>
+  <divider caption="Обновление запросов"/>
+  <query name="QueryToRefresh" caption="Запрос для обновления" texthint="Выберите запрос для автоматического обновления"/>
+  <checkbox name="KeepPos" caption="Сохранять позицию в запросе" defaultvalue="1" texthint="После обновления запроса позиция будет сохранена"/>
+  <ifgrid grid="buttons_config">
+    <if expr="GetValuesCount(buttons_config, button, GetText(button))>1"
+      msg="Кнопка &quot;`GetText(button)`&quot; назначена несколько раз. Каждая кнопка должна быть уникальной."
+      focus="button"/>
+  </ifgrid>
+Description=Универсальная настройка всех кнопок хранилища файлов на форме.<br><br>
+<b>📌 Назначение:</b><br>
+Добавляет на форму кнопки для работы с файловым хранилищем: добавление файлов к записям и открытие хранилища для просмотра.<br><br>
+<b>🔧 Как настроить:</b><br>
+1. В таблице <b>"Кнопки хранилища"</b> укажите кнопки и их действия:<br>
+   • <b>Добавить файл</b> — кнопка для добавления одного или нескольких файлов<br>
+   • <b>Открыть хранилище</b> — кнопка для просмотра всех файлов записи<br>
+   • <b>Счётчик</b> — показывать ли количество файлов на кнопке (Да/Нет)<br>
+2. Настройте <b>путь к папке назначения</b>:<br>
+   • <b>Базовая папка</b> — основная папка для хранения (если не указана — создаётся "Хранилище файлов" в рабочей директории)<br>
+   • <b>Подпапка (выражение)</b> — динамическая часть пути, например: [Год]\\[Месяц] или [Контрагент]<br>
+3. При необходимости задайте <b>выражение для имени файла</b><br>
+4. Настройте дополнительные параметры (удаление исходников, диалог переименования, фильтр расширений и др.)<br><br>
+<b>📂 Путь к папке:</b><br>
+• Итоговый путь = Базовая папка + Подпапка (выражение)<br>
+• Недопустимые символы в пути и подпапке заменяются на "_"<br>
+• Пример: Базовая папка = C:\\Files, Подпапка = [Год]\\[Месяц] → C:\\Files\\2026\\Январь\\<br><br>
+<b>📝 Имя файла:</b><br>
+• Можно задать фиксированное имя или выражение (например, [Номер] + "_" + [Дата])<br>
+• Недопустимые символы (\ / : * ? " &lt; &gt; |) заменяются на "_"<br>
+• При конфликте имён создаётся уникальное имя: файл.txt → файл(1).txt<br><br>
+<b>🛡️ Особенности:</b><br>
+• Проверка дубликатов файлов (по имени и дате изменения)<br>
+• Автоматическое удаление файлов при отмене редактирования записи<br>
+• Обновление выбранного запроса после добавления файлов<br>
+• Поддержка представлений формы vtGridOnly<br><br>
+<b>💡 Примеры выражений для подпапки:</b><br>
+• <code>[Год]</code> → 2026<br>
+• <code>[Год] + "\\" + [Месяц]</code> → 2026\\Январь<br>
+• <code>[Контрагент]</code> → ООО "Ромашка" (кавычки заменятся на _)<br>
+• <code>[ТипДокумента] + "\\" + [Номер]</code> → Договоры\\Д-001<br>
+@}
+
+type
+  TButtonSetupItem = record
+    ActionType: String;
+    ButtonName: String;
+    ShowCounter: Boolean;
+  end;
+
+  TFileStoreSetupData = record
+    Fm: TdxForm;
+    ButtonItems: array of TButtonSetupItem;
+    DescrExpr: String;
+    BaseFolder: String;
+    SubFolderExpr: String;
+    FileNameExpr: String;
+    DefaultExt: Integer;
+    DelAfterCopy: Integer;
+    ShowRenameDialog: Integer;
+    FileTypes: String;
+    AllowDuplicates: Integer;
+    EditOnAction: Integer;
+    QueryToRefresh: String;
+    KeepPos: Boolean;
+    Skip: Boolean;
+    OldEditWindowShow: TNotifyEvent;
+    OldFormAfterScroll: TNotifyEvent;
+    OldBeforePost: TNotifyEvent;
+    OldAfterCancel: TNotifyEvent;
+  end;
+
+var
+  FS_SetupArr: array of TFileStoreSetupData;
+
+// ============================================================
+// FORWARD-ОБЪЯВЛЕНИЯ
+// ============================================================
+procedure FS_OnButtonClick(Sender: TObject); forward;
+procedure FS_RefreshQuery(Fm: TdxForm; const QueryName: String; KeepPos: Boolean); forward;
+procedure FS_RestoreRecordState(Fm: TdxForm; WasEditing: Boolean); forward;
+
+// ============================================================
+// ПОИСК КНОПКИ НА ФОРМЕ
+// ============================================================
+function FindButtonOnForm(Form: TdxForm; SearchText: String): TdxButton;
+var
+  i: Integer;
+  Component: TComponent;
+  Btn: TdxButton;
+begin
+  Result := nil;
+  if (Form = nil) or (SearchText = '') then Exit;
+  for i := 0 to Form.ComponentCount - 1 do
+  begin
+    Component := Form.Components[i];
+    if Component is TdxButton then
+    begin
+      Btn := TdxButton(Component);
+      if (Btn.Name = SearchText) or (Btn.Caption = SearchText) then
+      begin Result := Btn; Exit; end;
+    end;
+  end;
+end;
+
+// ============================================================
+// ПОЛУЧЕНИЕ КОЛИЧЕСТВА ФАЙЛОВ
+// ============================================================
+function FS_GetFileCount(FmId, ARecId: Integer): Integer;
+var
+  SQL: String;
+  Q: TdxSQLQuery;
+begin
+  Result := 0;
+  if (FmId <= 0) or (ARecId <= 0) then Exit;
+  SQL := 'select count(*) as cnt from [file] f where f.[' + FIELD_RECORD_ID + '] = ' + IntToStr(ARecId);
+  try
+    Q := SQLSelect(SQL);
+    try Q.Open; if not Q.EOF then Result := Q.AsI['cnt']; finally Q.Free; end;
+  except Result := 0; end;
+end;
+
+// ============================================================
+// ОБНОВЛЕНИЕ КНОПКИ
+// ============================================================
+procedure FS_UpdateButtonCaption(Bn: TdxButton; Fm: TdxForm; const BaseCaption: String; ShowCounter: Boolean);
+var
+  FileCount: Integer;
+  BnCap: String;
+  p: Integer;
+begin
+  if Bn = nil then Exit;
+  if Fm = nil then Exit;
+  BnCap := BaseCaption;
+  p := Pos(' (', BnCap);
+  if p > 0 then SetLength(BnCap, p - 1);
+  if not ShowCounter then begin Bn.Caption := BnCap; Exit; end;
+  try
+    if Fm.State = dsInsert then FileCount := 0
+    else if (Fm.RecId > 0) then FileCount := FS_GetFileCount(Fm.Id, Fm.RecId)
+    else FileCount := 0;
+  except FileCount := 0; end;
+  Bn.Caption := BnCap + ' (' + IntToStr(FileCount) + ')';
+end;
+
+// ============================================================
+// ПОИСК ЗАПИСИ В МАССИВЕ
+// ============================================================
+function FS_FindSetupData(AForm: TObject): Integer;
+var i: Integer;
+begin
+  Result := -1;
+  for i := High(FS_SetupArr) downto 0 do
+    with FS_SetupArr[i] do
+      if (AForm = Fm) and not Skip then begin Result := i; Exit; end;
+end;
+
+function FS_FindSetupDataByButton(AButton: TObject): Integer;
+var i, j: Integer; Btn: TdxButton;
+begin
+  Result := -1;
+  for i := High(FS_SetupArr) downto 0 do
+  begin
+    if FS_SetupArr[i].Skip then Continue;
+    for j := 0 to High(FS_SetupArr[i].ButtonItems) do
+    begin
+      Btn := FindButtonOnForm(FS_SetupArr[i].Fm, FS_SetupArr[i].ButtonItems[j].ButtonName);
+      if Btn = AButton then begin Result := i; Exit; end;
+    end;
+  end;
+end;
+
+function FS_IsAddAction(ActionType: String): Boolean;
+begin Result := ActionType = ACTION_ADD_FILE; end;
+
+// ============================================================
+// ОБРАБОТЧИКИ СОБЫТИЙ
+// ============================================================
+
+procedure FS_RefreshQuery(Fm: TdxForm; const QueryName: String; KeepPos: Boolean);
+var Q: TdxQueryGrid; RecId, RecNo: Integer;
+begin
+  if QueryName = '' then Exit;
+  if Fm = nil then Exit;
+  Q := Fm.Queries[QueryName];
+  if Q = nil then Exit;
+  if KeepPos then
+  begin
+    try RecId := Q.RecId; except RecId := 0; end;
+    if RecId = 0 then RecNo := Q.RecNo;
+  end;
+  Q.Refresh;
+  if KeepPos then
+  begin
+    if RecId > 0 then Q.GotoRecord(RecId)
+    else if RecNo > 0 then Q.MoveTo(RecNo);
+  end;
+end;
+
+procedure FS_OnBeforePost(Sender: TObject);
+var n: Integer; Data: TFileStoreSetupData;
+begin
+  n := FS_FindSetupData(Sender);
+  if n < 0 then Exit;
+  Data := FS_SetupArr[n];
+  if Data.OldBeforePost <> nil then
+  try Data.Skip := True; Data.OldBeforePost(Sender); finally Data.Skip := False; end;
+end;
+
+procedure FS_OnAfterCancel(Sender: TObject);
+var n: Integer; Data: TFileStoreSetupData; FilesTbl, StoreFm: TdxForm;
+begin
+  n := FS_FindSetupData(Sender);
+  if n < 0 then Exit;
+  Data := FS_SetupArr[n];
+  if Data.OldAfterCancel <> nil then
+  try Data.Skip := True; Data.OldAfterCancel(Sender); finally Data.Skip := False; end;
+  if Data.Fm.State = dsBrowse then
+  begin
+    try
+      StoreFm := TdxForm.Create(STORE_FORM_NAME);
+      try
+        StoreFm.OpenRecords('[' + FIELD_FORM_ID + ']=''' + IntToStr(Data.Fm.Id) + '''', nil, False);
+        if StoreFm.RecordCount > 0 then
+        begin
+          FilesTbl := StoreFm.Forms[STORE_FILE_TABLE];
+          StoreFm.MoveFirst;
+          while not StoreFm.Eof do
+          begin
+            if StoreFm[FIELD_RECORD_ID] = 0 then
+            begin
+              FilesTbl.OpenRecord(StoreFm.RecId);
+              while FilesTbl.RecordCount > 0 do FilesTbl.Delete;
+              StoreFm.Delete;
+            end
+            else StoreFm.MoveNext;
+          end;
+        end;
+      finally StoreFm.Free; end;
+    except end;
+  end;
+end;
+
+procedure FS_OnAfterScroll(Sender: TObject);
+var n, i: Integer; Data: TFileStoreSetupData; Bn: TdxButton; BaseCaption: String;
+begin
+  n := FS_FindSetupData(Sender);
+  if n < 0 then Exit;
+  Data := FS_SetupArr[n];
+  if Data.OldFormAfterScroll <> nil then
+  try Data.Skip := True; Data.OldFormAfterScroll(Sender); finally Data.Skip := False; end;
+  for i := 0 to High(Data.ButtonItems) do
+  begin
+    Bn := FindButtonOnForm(Data.Fm, Data.ButtonItems[i].ButtonName);
+    if Bn = nil then Continue;
+    BaseCaption := Bn.Caption;
+    FS_UpdateButtonCaption(Bn, Data.Fm, BaseCaption, Data.ButtonItems[i].ShowCounter);
+  end;
+end;
+
+procedure FS_OnEditWindowShow(Sender: TObject);
+var n, i: Integer; Data: TFileStoreSetupData; Bn: TdxButton;
+begin
+  if not (Sender is TEditWindow) then Exit;
+  n := FS_FindSetupData(TEditWindow(Sender).Form);
+  if n < 0 then Exit;
+  Data := FS_SetupArr[n];
+  if Data.Fm.ViewType = vtGridOnly then
+  begin
+    for i := 0 to High(Data.ButtonItems) do
+    begin
+      Bn := TdxButton(TEditWindow(Sender).FindComponent(Data.ButtonItems[i].ButtonName));
+      if Bn = nil then Bn := FindButtonOnForm(Data.Fm, Data.ButtonItems[i].ButtonName);
+      if Bn <> nil then
+      begin
+        Bn.OnClick := @FS_OnButtonClick;
+        FS_UpdateButtonCaption(Bn, Data.Fm, Bn.Caption, Data.ButtonItems[i].ShowCounter);
+      end;
+    end;
+  end;
+  if Data.OldEditWindowShow <> nil then
+  try Data.Skip := True; Data.OldEditWindowShow(Sender); finally Data.Skip := False; end;
+  FS_OnAfterScroll(Data.Fm);
+end;
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНАЯ ПРОЦЕДУРА
+// ============================================================
+procedure FS_RestoreRecordState(Fm: TdxForm; WasEditing: Boolean);
+begin
+  if Fm = nil then Exit;
+  if not WasEditing then
+  begin
+    if Fm.State in [dsInsert, dsEdit] then
+    begin
+      if Fm.Validate then Fm.Post else Fm.Cancel;
+    end;
+  end;
+end;
+
+// ============================================================
+// ОБРАБОТЧИКИ КЛИКОВ ПО КНОПКАМ
+// ============================================================
+
+procedure FS_OnButtonClick(Sender: TObject);
+var
+  n, i: Integer;
+  Data: TFileStoreSetupData;
+  Bn: TdxButton;
+  ButtonName: String;
+  StoreFm, FilesTbl: TdxForm;
+  WasEditingOriginally: Boolean;
+  DscrField, DestFolder, UserFlNm: String;
+  SrcFlNm, DestFlNm, ResultMsg, DelMsg: String;
+  SrcFiles, DestFiles: TStringList;
+  CheckResult: TCheckFileResult;
+  ProgressBar: TForm;
+  AllowDup: Integer;
+  EditOnAction: Boolean;
+  ActionType: String;
+  RenameNewName, DefaultName: String;
+begin
+  n := FS_FindSetupDataByButton(Sender);
+  if n < 0 then Exit;
+  Data := FS_SetupArr[n];
+  Bn := TdxButton(Sender);
+  ButtonName := Bn.Name;
+
+  ActionType := '';
+  for i := 0 to High(Data.ButtonItems) do
+    if Data.ButtonItems[i].ButtonName = ButtonName then
+    begin ActionType := Data.ButtonItems[i].ActionType; Break; end;
+  if ActionType = '' then Exit;
+
+  AllowDup := Data.AllowDuplicates;
+  EditOnAction := Data.EditOnAction = 1;
+  WasEditingOriginally := Data.Fm.State in [dsEdit, dsInsert];
+
+  // ========== ДОБАВИТЬ ФАЙЛ ==========
+  if FS_IsAddAction(ActionType) then
+  begin
+    if Data.Fm.State = dsInsert then
+    begin
+      if MessageDlg(MSG_WARNING, MSG_SAVE_NEW_RECORD + LineEnding + MSG_SAVE_AND_ADD, mtConfirmation, [mbYes, mbNo]) <> mrYes then Exit;
+      if Data.Fm.Validate then begin Data.Fm.Post; Data.Fm.Edit; WasEditingOriginally := True; end else Exit;
+    end;
+    if EditOnAction and not (Data.Fm.State in [dsInsert, dsEdit]) then Data.Fm.Edit;
+
+    DscrField := VarToStr(EvalExpr(Data.DescrExpr, Data.Fm));
+    DestFolder := BuildDestFolder(Data.BaseFolder, Data.SubFolderExpr, Data.Fm);
+    UserFlNm := VarToStr(EvalExpr(Data.FileNameExpr, Data.Fm));
+    UserFlNm := SanitizeFileName(UserFlNm, False);
+
+    SrcFiles := TStringList.Create;
+    with TOpenDialog.Create(nil) do
+    begin
+      Options := Options + [ofFileMustExist, ofAllowMultiSelect];
+      Title := MSG_OPEN_FILE_TITLE;
+      Filter := Data.FileTypes;
+      if Execute then SrcFiles.AddStrings(Files);
+      Free;
+    end;
+
+    if SrcFiles.Count = 0 then
+    begin
+      SrcFiles.Free;
+      if Data.QueryToRefresh <> '' then FS_RefreshQuery(Data.Fm, Data.QueryToRefresh, Data.KeepPos);
+      FS_RestoreRecordState(Data.Fm, WasEditingOriginally);
+      Exit;
+    end;
+
+    if not TryForceDirectories(DestFolder) then
+    begin SrcFiles.Free; FS_RestoreRecordState(Data.Fm, WasEditingOriginally); Exit; end;
+
+    if (Data.ShowRenameDialog = 1) and (SrcFiles.Count = 1) then
+    begin
+      if UserFlNm <> '' then
+      begin
+        if Data.DefaultExt = 1 then DefaultName := UserFlNm + ExtractFileExt(SrcFiles[0])
+        else DefaultName := UserFlNm;
+      end
+      else DefaultName := ExtractFileName(SrcFiles[0]);
+
+      if ShowRenameDialog(DefaultName, RenameNewName) then
+      begin
+        if RenameNewName <> DefaultName then
+        begin
+          RenameNewName := SanitizeFileName(RenameNewName, False);
+          if Data.DefaultExt = 1 then UserFlNm := ChangeFileExt(RenameNewName, '')
+          else UserFlNm := RenameNewName;
+        end;
+      end
+      else
+      begin
+        SrcFiles.Free;
+        if Data.QueryToRefresh <> '' then FS_RefreshQuery(Data.Fm, Data.QueryToRefresh, Data.KeepPos);
+        FS_RestoreRecordState(Data.Fm, WasEditingOriginally);
+        Exit;
+      end;
+    end;
+
+    ResultMsg := ''; DelMsg := '';
+    StoreFm := CreateStore_Fm;
+    FilesTbl := StoreFm.Forms[STORE_FILE_TABLE];
+    DestFiles := TStringList.Create;
+    ProgressBar := nil;
+
+    try
+      ProgressBar := ShowProgress(MSG_PROGRESS_COPY, '', 300, 200);
+      StoreFm.OpenRecords('[' + FIELD_FORM_ID + ']=''' + IntToStr(Data.Fm.Id) + ''' & [' + FIELD_RECORD_ID + ']=''' + IntToStr(Data.Fm.RecId) + '''', nil, False);
+
+      for i := SrcFiles.Count - 1 downto 0 do
+      begin
+        SrcFlNm := SrcFiles[i];
+        if UserFlNm <> '' then
+        begin
+          if Data.DefaultExt = 1 then DestFlNm := DestFolder + UserFlNm + ExtractFileExt(SrcFlNm)
+          else DestFlNm := DestFolder + UserFlNm;
+        end
+        else DestFlNm := DestFolder + ExtractFileName(SrcFlNm);
+
+        CheckResult := CheckFile(FilesTbl, SrcFlNm, AllowDup);
+        case CheckResult of
+          cfSrcNotFound: ResultMsg := ResultMsg + LE2 + MSG_FILE_NOT_FOUND + SrcFlNm;
+          cfSrcOlder: ResultMsg := ResultMsg + LE2 + MSG_FILE_SKIPPED_OLDER + SrcFlNm + MSG_HINT_OLDER;
+          cfSrcSame: ResultMsg := ResultMsg + LE2 + MSG_FILE_SKIPPED_SAME + SrcFlNm + MSG_HINT_SAME;
+        end;
+        if not (CheckResult in [cfSrcNew, cfSrcNewer]) then begin SrcFiles.Delete(i); Continue; end;
+        if CheckResult = cfSrcNew then DestFlNm := MakeUniqueFileName(DestFlNm);
+
+        if FileExists(DestFlNm) and not CanWriteFile(DestFlNm) then
+          ResultMsg := ResultMsg + LE2 + MSG_CANNOT_REPLACE + DestFlNm + MSG_FILE_BUSY
+        else
+          try MyCopyFile(SrcFlNm, DestFlNm); DestFiles.Insert(0, DestFlNm);
+          except ResultMsg := ResultMsg + LE2 + MSG_COPY_ERROR + SrcFlNm + ' в ' + DestFlNm + '. ' + ExceptionParam; end;
+      end;
+
+      if DestFiles.Count > 0 then
+      begin
+        if StoreFm.RecordCount = 0 then
+        begin
+          StoreFm.Append;
+          SafeSetField(StoreFm, FIELD_FORM_ID, Data.Fm.Id);
+          SafeSetField(StoreFm, FIELD_RECORD_ID, Data.Fm.RecId);
+          SafeSetField(StoreFm, FIELD_FORM, Data.Fm.FormCaption);
+          SafeSetField(StoreFm, FIELD_DESCRIPTION, DscrField);
+        end
+        else StoreFm.Edit;
+        for i := 0 to SrcFiles.Count - 1 do CreateRecordInTable(FilesTbl, SrcFiles[i], DestFiles[i], AllowDup);
+        StoreFm.Post;
+        if Data.DelAfterCopy = 1 then
+          for i := SrcFiles.Count - 1 downto 0 do
+          begin
+            SrcFlNm := SrcFiles[i];
+            if not DeleteFile(SrcFlNm) then DelMsg := DelMsg + LE2 + MSG_DELETE_ERROR + SrcFlNm;
+          end;
+      end;
+
+      ProgressBar.Free; ProgressBar := nil;
+      if ResultMsg <> '' then MsgBox(MSG_CAPTION, MSG_COPY_RESULT + ResultMsg);
+      if DelMsg <> '' then MsgBox(MSG_CAPTION, MSG_DELETE_RESULT + DelMsg);
+    finally
+      if ProgressBar <> nil then ProgressBar.Free;
+      StoreFm.Free; SrcFiles.Free; DestFiles.Free;
+    end;
+
+    FS_OnAfterScroll(Data.Fm);
+    if Data.QueryToRefresh <> '' then FS_RefreshQuery(Data.Fm, Data.QueryToRefresh, Data.KeepPos);
+    FS_RestoreRecordState(Data.Fm, WasEditingOriginally);
+  end
+
+  // ========== ОТКРЫТЬ ХРАНИЛИЩЕ ==========
+  else
+  begin
+    if Data.Fm.State = dsInsert then
+    begin
+      if MessageDlg(MSG_WARNING, MSG_SAVE_BEFORE_OPEN + LineEnding + MSG_SAVE_AND_OPEN, mtConfirmation, [mbYes, mbNo]) <> mrYes then Exit;
+      if Data.Fm.Validate then begin Data.Fm.Post; Data.Fm.Edit; WasEditingOriginally := True; end else Exit;
+    end;
+    if EditOnAction and not (Data.Fm.State in [dsInsert, dsEdit]) then Data.Fm.Edit;
+
+    StoreFm := CreateStore_Fm;
+    StoreFm.OpenRecords('[' + FIELD_FORM_ID + ']=''' + IntToStr(Data.Fm.Id) + ''' & [' + FIELD_RECORD_ID + ']=''' + IntToStr(Data.Fm.RecId) + '''', nil, False);
+
+    if StoreFm.RecordCount = 0 then
+    begin
+      StoreFm.Append;
+      SafeSetField(StoreFm, FIELD_FORM_ID, Data.Fm.Id);
+      SafeSetField(StoreFm, FIELD_RECORD_ID, Data.Fm.RecId);
+      SafeSetField(StoreFm, FIELD_FORM, Data.Fm.FormCaption);
+    end
+    else StoreFm.Edit;
+
+    try
+      StoreFm.EditWindow.Buttons.ShowButtons := [pbClose];
+      StoreFm.EditWindow.ShowModal;
+      StoreFm.Post;
+      FS_OnAfterScroll(Data.Fm);
+      if Data.QueryToRefresh <> '' then FS_RefreshQuery(Data.Fm, Data.QueryToRefresh, Data.KeepPos);
+      FS_RestoreRecordState(Data.Fm, WasEditingOriginally);
+    finally StoreFm.Free; end;
+  end;
+end;
+
+// ============================================================
+// ГЛАВНАЯ ФУНКЦИЯ НАСТРОЙКИ
+// ============================================================
+
+function FileStore_Setup(ButtonConfig: TVariantArray2d; DescrExpr, BaseFolder, SubFolderExpr, FileNameExpr: String;
+  DefaultExt, DelAfterCopy, ShowRenameDialog: Integer; FileTypes: String;
+  AllowDuplicates, EditOnAction: Integer; QueryToRefresh: String; KeepPos: Integer): Boolean;
+var
+  Data: TFileStoreSetupData;
+  n, i: Integer;
+  Bn: TdxButton;
+  ShowCounterVal: string;
+begin
+  Result := True;
+
+  Data.Fm := Self;
+  Data.DescrExpr := DescrExpr;
+  Data.BaseFolder := BaseFolder;
+  Data.SubFolderExpr := SubFolderExpr;
+  Data.FileNameExpr := FileNameExpr;
+  Data.DefaultExt := DefaultExt;
+  Data.DelAfterCopy := DelAfterCopy;
+  Data.ShowRenameDialog := ShowRenameDialog;
+  Data.FileTypes := FileTypes;
+  Data.AllowDuplicates := AllowDuplicates;
+  Data.EditOnAction := EditOnAction;
+  Data.QueryToRefresh := QueryToRefresh;
+  Data.KeepPos := KeepPos = 1;
+  Data.Skip := False;
+
+  SetLength(Data.ButtonItems, Length(ButtonConfig));
+  for i := 0 to High(ButtonConfig) do
+  begin
+    Data.ButtonItems[i].ActionType := ButtonConfig[i][0];
+    Data.ButtonItems[i].ButtonName := ButtonConfig[i][1];
+    ShowCounterVal := VarToStr(ButtonConfig[i][2]);
+    Data.ButtonItems[i].ShowCounter := (ShowCounterVal <> 'Нет');
+
+    Bn := FindButtonOnForm(Self, ButtonConfig[i][1]);
+    if Bn <> nil then
+    begin
+      Bn.OnClick := @FS_OnButtonClick;
+      FS_UpdateButtonCaption(Bn, Self, Bn.Caption, Data.ButtonItems[i].ShowCounter);
+    end;
+  end;
+
+  Data.OldFormAfterScroll := Self.OnAfterScroll;
+  Data.OldBeforePost := Self.OnBeforePost;
+  Data.OldAfterCancel := Self.OnAfterCancel;
+
+  Self.OnAfterScroll := @FS_OnAfterScroll;
+  Self.OnAfterCancel := @FS_OnAfterCancel;
+  if QueryToRefresh <> '' then Self.OnBeforePost := @FS_OnBeforePost;
+  if Self.ViewType = vtGridOnly then
+  begin
+    Data.OldEditWindowShow := Self.EditWindow.OnShow;
+    Self.EditWindow.OnShow := @FS_OnEditWindowShow;
+  end;
+
+  n := Length(FS_SetupArr);
+  SetLength(FS_SetupArr, n + 1);
+  FS_SetupArr[n] := Data;
+end;
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ / ДЕИНИЦИАЛИЗАЦИЯ
+// ============================================================
+procedure Init;
+begin
+  SetLength(FS_SetupArr, 0);
+end;
+
+procedure Done;
+begin
+  SetLength(FS_SetupArr, 0);
+end;
+
+// ============================================================
+// ТОЧКА ВХОДА
+// ============================================================
+begin
+  Init;
+end.

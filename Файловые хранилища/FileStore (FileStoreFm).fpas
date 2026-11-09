@@ -1,0 +1,881 @@
+const
+  LE2 = LineEnding + LineEnding;
+  ImgCopy = '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';
+
+function ShowProgress(const AMsg, AImgStr: String; W, H: Integer): TForm;
+var
+  Img: TdxImage;
+begin
+  Img := nil;
+  Result := TForm.Create(Application);
+  with Result do
+  begin
+    BorderStyle := bsNone;
+    if W = 0 then W := 300;
+    if H = 0 then H := 200;
+    Width := Scale96ToScreen(W);
+    Height := Scale96ToScreen(H);
+    Font.Name := 'Verdana';
+    Font.Size := 10;
+    Position := poMainFormCenter;
+    FormStyle := fsStayOnTop;
+    Color := clWhite;
+  end;
+  with TShape.Create(Result) do
+  begin
+    Parent := Result;
+    Align := alClient;
+    Brush.Color := Result.Color;
+  end;
+  if AImgStr <> '' then
+  begin
+    Img := TdxImage.Create(Result);
+    with Img do
+    begin
+      Parent := Result;
+      LoadFromStringBase64(AImgStr);
+      Width := Bitmap.Width;
+      Height := Bitmap.Height;
+      Left := Result.Width div 2 - Width div 2;
+      Top := Result.Height div 2 - Height div 2;
+      if AMsg <> '' then Top := Top - Round(Abs(Result.Font.Height) * 2);
+    end;
+  end;
+  if AMsg <> '' then
+  begin
+    with TLabel.Create(Result) do
+    begin
+      Parent := Result;
+      AutoSize := False;
+      WordWrap := True;
+      Alignment := taCenter;
+      if Img = nil then
+      begin
+        Align := alClient;
+        BorderSpacing.Around := Scale96ToScreen(4);
+        Layout := tlCenter;
+      end
+      else
+      begin
+        Left := Scale96ToScreen(4);
+        Top := Img.Top + Img.Height + Round(Abs(Result.Font.Height));
+        Width := Result.Width - Scale96ToScreen(8);
+        Height := Result.Height - Top - Scale96ToScreen(4);
+      end;
+      Caption := AMsg;
+    end;
+  end;
+  Result.Show;
+  Application.ProcessMessages;
+end;
+
+procedure MyCopyFile(const SrcFileName, DestFileName: String);
+var
+  SrcSt, DestSt: TFileStream;
+  Buf: String;
+  BufSize, ReadBytes: Integer;
+  FileChanged: LongInt;
+begin
+  ForceDirectories(ExtractFilePath(DestFileName));
+
+  SrcSt := nil; DestSt := nil;
+  FileChanged := FileAge(SrcFileName);
+  BufSize := 1024 * 1024;
+  SetLength(Buf, BufSize);
+  try
+    SrcSt := TFileStream.Create(SrcFileName, fmOpenRead + fmShareDenyNone);
+    DestSt := TFileStream.Create(DestFileName, fmCreate);
+    repeat
+      ReadBytes := SrcSt.Read(Buf, BufSize);
+      DestSt.Write(Buf, ReadBytes);
+    until ReadBytes < BufSize;
+  finally
+    if SrcSt <> nil then SrcSt.Free;
+    if DestSt <> nil then DestSt.Free;
+  end;
+
+  FileSetDate(DestFileName, FileChanged);
+end;
+
+type
+  TCheckFileResult = (cfSrcNotFound, cfSrcOlder, cfSrcSame, cfSrcNewer, cfSrcNew);
+
+function FindSourceFile(FilesTbl: TdxForm; const FileNameOnly: String): Boolean;
+var
+  Src: String;
+begin
+  Result := False;
+  with FilesTbl do
+  begin
+    DisableScrollEvents;
+    DisableControls;
+    try
+      MoveFirst;
+      while not Eof do
+      begin
+        Src := ExtractFileName(AsS['Источник']);
+        if Utf8CompareText(Src, FileNameOnly) = 0 then
+        begin
+          Result := True;
+          Exit;
+        end;
+        MoveNext;
+      end;
+    finally
+      EnableControls;
+      EnableScrollEvents;
+    end;
+  end;
+end;
+
+function CheckFile(FilesTbl: TdxForm; const SrcFileName: String): TCheckFileResult;
+var
+  SrcChanged, DestChanged: Longint;
+  DestFileName: String;
+begin
+  Result := cfSrcNew;
+
+  SrcChanged := FileAge(SrcFileName);
+  if SrcChanged = -1 then
+    Result := cfSrcNotFound
+  else if FindSourceFile(FilesTbl, ExtractFileName(SrcFileName)) then
+  begin
+    DestFileName := FilesTbl.Files['Файл'].SourceFileName;
+    DestChanged := FileAge(DestFileName);
+    if DestChanged = -1 then
+    else if SrcChanged < DestChanged then
+      Result := cfSrcOlder
+    else if SrcChanged = DestChanged then
+      Result := cfSrcSame
+    else
+      Result := cfSrcNewer
+  end;
+end;
+
+function MakeUniqueFileName(DestFileName: String): String;
+var
+  i: Integer;
+  FlNm, FlExt: String;
+begin
+  Result := DestFileName;
+  if not FileExists(DestFileName) then Exit;
+
+  FlExt := ExtractFileExt(DestFileName);
+  FlNm := ChangeFileExt(DestFileName, '');
+  i := 1;
+  while True do
+  begin
+    Result := FlNm + '(' + IntToStr(i) + ')' + FlExt;
+    if not FileExists(Result) then Break
+    else Inc(i);
+  end;
+end;
+
+function CanWriteFile(const FileName: String): Boolean;
+begin
+  try
+    TFileStream.Create(FileName, fmOpenWrite).Free;
+    Result := True;
+  except
+    Result := False;
+  end;
+end;
+
+procedure CreateRecordInTable(FilesTbl: TdxForm; SrcFileName, DestFileName: String);
+var
+  FileComp: TdxFile;
+  DT: TDateTime;
+begin
+  with FilesTbl do
+  begin
+    FileComp := Files['Файл'];
+    if not FindSourceFile(FilesTbl, ExtractFileName(SrcFileName)) then
+      Append
+    else
+      Edit;
+    DT := FileDateToDateTime(FileAge(DestFileName));
+    Fields['Дата'] := DT;
+    Fields['Время'] := DT;
+    FileComp.LoadFromFile(DestFileName)
+    Fields['Источник'] := SrcFileName;
+    Fields['Путь к папке'] := ExtractFilePath(DestFileName);
+    Fields['Имя файла'] := ExtractFileName(DestFileName);
+
+    case FileComp.StorageType of
+      0: Fields['Способ хранения'] := 'База данных';
+      1: Fields['Способ хранения'] := 'Папка';
+      2: Fields['Способ хранения'] := 'Ссылка';
+    end;
+    Post;
+  end;
+end;
+
+procedure DeleteConfirmationBox (msg: string);
+//var msg1: integer;
+begin
+  MsgBox('DX Хранилище файлов', msg);
+  {msg1 := MessageDlg ('DX Хранилище файлов', 'Выполнение опрации невозможно.'+
+    +#13+#13+'Ошибка: '+msg+#13+#13+'Удалить запись о файле из хранилища?',
+    mtWarning, [mbNo, mbYes]);
+  if msg1 = mrNo then exit;
+  if not (Self.State in [dsEdit, dsInsert]) then Self.Edit;
+  Self.Forms['file'].delete;
+  Self.Post;  }
+end;
+
+function FilePath: string;
+var
+  dxFile1: TdxFile;
+  FileName, StorageType, Path: String;
+begin
+  with Self.Forms['file'] do
+  begin
+    if fields['Путь к папке'] <> null then
+      Path := IncludeTrailingPathDelimiter(AsS['Путь к папке']) + AsS['Имя файла']
+    else
+      Path := AsS['Источник'];
+    StorageType := AsS['Способ хранения'];
+    dxFile1 := TdxFile (FindComponent('dxFile1'));
+    if StorageType = 'База данных' then
+    begin
+      FileName := dxFile1.Text;
+      dxFile1.SaveToFile (FileName);
+      Result := GetCurrentDir+FileName;
+    end
+    else if StorageType = 'Папка' then
+    begin
+      Result := Path;
+    end
+    else if StorageType = 'Ссылка' then
+    begin
+      Result := Path;
+    end;
+  end;
+end;
+
+
+{function DeleteDoubleSlash(Path: string): string;
+begin
+  Result := Path;
+  if Pos('\\', Path) = 1 then exit;
+  Result := StringReplace(Path, '\\', '\', [rfReplaceAll, rfIgnoreCase]);
+end; }
+
+procedure OpenFile (Sender: TObject);
+var
+  FileName: String;
+  ShellEx: boolean;
+begin
+  if Self.Forms['file'].RecordCount = 0 then exit;
+  FileName := {DeleteDoubleSlash}(FilePath);
+  if not FileExists (FileName) then
+  begin
+    DeleteConfirmationBox ('файл перемещён, удалён, переименован, либо неверно указан путь.');
+    exit;
+  end;
+
+  if TdxButton (Sender).Name = 'dxButton3' then
+  begin
+    ShellEx := ShellExecute ('open', 'explorer', '/select, '+FileName, '', 1);
+    if not ShellEx then DeleteConfirmationBox ('Папка перемещёна, переименована или удалёна.');
+  end
+  else
+  begin
+    ShellEx := ShellExecute ('Open', FileName, '', '', 1);
+    if not ShellEx then DeleteConfirmationBox ('Файл перемещён, удалён или переименован.');
+  end;
+end;
+
+procedure SaveFile (Sender: TObject);
+var
+  SaveDlg: TSaveDialog;
+  dxFile1: TdxFile;
+  FileName, FileExt, Path: String;
+  msg: integer;
+begin
+  if Self.Forms['file'].RecordCount = 0 then exit;
+  dxFile1 := TdxFile (Self.Forms['file'].FindComponent('dxFile1'));
+  Path := FilePath;
+  if not FileExists (Path) then
+  begin
+    DeleteConfirmationBox ('файл перемещён, удалён, переименован, либо неверно указан путь.');
+    exit;
+  end;
+  FileName := ExtractFileName (Path);
+  FileExt := ExtractFileExt(Path);
+
+  try
+    SaveDlg := TSaveDialog.Create (Self);
+    SaveDlg.Title := 'Сохранить файл как...';
+    SaveDlg.FileName := FileName;
+    SaveDlg.DefaultExt := FileExt;
+    SaveDlg.Filter := '*'+FileExt+' файлы|*'+FileExt+'|Все файлы|*.*';
+    if not SaveDlg.Execute then exit;
+    if FileExists (SaveDlg.FileName) then
+    begin
+      msg := MessageDlg ('Сохранение файла', 'Файл с таким именем уже существует '+
+      'в указанной папке.'+#13+#13+'Вы хотите заменить файл?', mtConfirmation, [mbYes, mbNo]);
+      if msg = mrNo then exit;
+    end;
+    dxFile1.SaveToFile (SaveDlg.FileName);
+  finally
+    if SaveDlg <> nil then SaveDlg.Free;
+  end;
+end;
+
+procedure DeleteFiles (Sender: TObject);
+var
+  msg: integer;
+  FDel: boolean;
+  Path: string;
+begin
+  with Self.Forms['file'] do
+  begin
+    if RecordCount = 0 then exit;
+    msg := MessageDlg ('DX Хранилище файлов', 'Вы действительно хотите удалить '+
+      'все файлы из списка?', mtConfirmation, [mbYes, mbNo]);
+    if msg = mrNo then exit;
+    msg := MessageDlg ('Удаление файлов', 'Удалить файлы с жёсткого диска?',
+      mtConfirmation, [mbNo, mbYes]);
+    if msg = mrYes then
+      FDel := true;
+
+    if not (Self.State in [dsEdit, dsInsert]) then Self.Edit;
+    DisableControls;
+    MoveLast;
+    while not BoF do
+    begin
+      Path := IncludeTrailingPathDelimiter(AsS['Путь к папке']) + AsS['Имя файла'];
+      DeleteFile (Path);
+      delete;
+    end;
+    EnableControls;
+    Self.Post;
+  end;
+end;
+
+procedure DeleteSelectedFile (Sender: TObject);
+var
+  msg: integer;
+  Path: string;
+begin
+  with Self.Forms['file'] do
+  begin
+    if RecordCount = 0 then exit;
+    msg := MessageDlg ('DX Хранилище файлов', 'Вы действительно хотите удалить '+
+      'выбранный файл?', mtConfirmation, [mbYes, mbNo]);
+    if msg = mrNo then exit;
+    if not (Self.State in [dsEdit, dsInsert]) then Self.Edit;
+    Path := IncludeTrailingPathDelimiter(AsS['Путь к папке']) + AsS['Имя файла'];
+    delete;
+    Self.Post;
+
+    msg := MessageDlg ('Удаление файла', 'Удалить файл с жёсткого диска?',
+      mtConfirmation, [mbNo, mbYes]);
+    if msg = mrYes then
+      DeleteFile (Path);
+
+  end;
+end;
+
+procedure AddFile (Sender: TObject);
+var
+  FDlg: TOpenDialog;
+  SrcFiles, DestFiles: TStringList;
+  i: Integer;
+  DestFolder, SrcFlNm, DestFlNm, UserFlNm, ResultMsg, DelMsg: String;
+  DefaultExt: Boolean;
+  CheckResult: TCheckFileResult;
+  FilesTbl: TdxForm;
+  Progress: TForm;
+begin
+  SrcFiles := TStringList.Create;
+  FDlg := TOpenDialog.Create (Self);
+  try
+    FDlg.Options := FDlg.Options + [ofAllowMultiSelect, ofFileMustExist];
+    FDlg.Title := 'Выбирите файлы для загрузки в базу данных'
+    FDlg.Filter := Self.AsS['Типы файлов'];
+    if FDlg.Execute then
+      SrcFiles.AddStrings(FDlg.Files);
+  finally
+    FDlg.Free;
+  end;
+
+  if SrcFiles.Count = 0 then
+  begin
+    SrcFiles.Free;
+    Exit;
+  end;
+
+  DestFolder := Self.AsS['Путь к файлу'];
+  if not ForceDirectories(DestFolder) then
+  begin
+    MessageDlg('DX Хранилище файлов', 'Ошибка создания папок по указанному пути:'+
+      +LineEnding+LineEnding+DestFolder+LineEnding+LineEnding+
+      '1. Проверьте нет ли ошибок в пути.' + LineEnding +
+      '2. Проверьте правильность составленного выражения.' + LineEnding +
+      '3. Проверьте доступность сетевой папки (если папка сетевая).', mtError, [mbAbort]);
+    Exit;
+  end;
+
+  DestFiles := TStringList.Create;
+  ResultMsg := '';
+  FilesTbl := Self.Forms['file'];
+
+  try
+
+  Progress := ShowProgress('Идет копирование...', ImgCopy, 300, 200);
+
+  UserFlNm := Self.AsS['имя файла'];
+  DefaultExt := Self.AsI['Расширение исх. файла'] = 1;
+  for i := SrcFiles.Count - 1 downto 0 do
+  begin
+    SrcFlNm := SrcFiles[i];
+    if UserFlNm <> '' then
+    begin
+      if DefaultExt = True then
+        DestFlNm := DestFolder + UserFlNm + ExtractFileExt(SrcFlNm)
+      else
+        DestFlNm := DestFolder + UserFlNm;
+    end
+    else
+      DestFlNm := DestFolder + ExtractFileName(SrcFlNm);
+
+    CheckResult := CheckFile(FilesTbl, SrcFlNm);
+    case CheckResult of
+      cfSrcNotFound: ResultMsg := ResultMsg + LE2 + 'Файл не найден: ' + SrcFlNm;
+      cfSrcOlder: ResultMsg := ResultMsg + LE2 + 'Файл пропущен: ' + SrcFlNm + '. В хранилище есть его более поздняя версия!';
+      cfSrcSame: ResultMsg := ResultMsg + LE2 + 'Файл пропущен: ' + SrcFlNm + '. В хранилище есть такая версия файла!';
+    end;
+
+    if not (CheckResult in [cfSrcNew, cfSrcNewer]) then
+    begin
+      SrcFiles.Delete(i);
+      Continue;
+    end;
+
+    if CheckResult = cfSrcNew then
+      DestFlNm := MakeUniqueFileName(DestFlNm);
+
+    if FileExists(DestFlNm) and not CanWriteFile(DestFlNm) then
+      ResultMsg := ResultMsg + LE2 + 'Не удалось заменить в хранилище файл ' +
+        DestFlNm + '. Файл занят другим процессом или нет прав на запись.'
+    else
+      try
+        MyCopyFile(SrcFlNm, DestFlNm);
+        DestFiles.Insert(0, DestFlNm);
+      except
+        ResultMsg := ResultMsg + LE2 + 'Не удалось скопировать файл ' + SrcFlNm +
+          ' в ' + DestFlNm + '. ' + ExceptionParam;
+      end;
+  end;
+
+  if SrcFiles.Count > 0 then
+  begin
+    if not (Self.State in [dsInsert, dsEdit]) then Self.Edit;
+    for i := 0 to SrcFiles.Count - 1 do
+      CreateRecordInTable(FilesTbl, SrcFiles[i], DestFiles[i]);
+    Self.Post;
+  end;
+
+  if Self.AsI['Удалять исходные файлы'] = 1 then
+  begin
+    DelMsg := '';
+    for i := SrcFiles.Count - 1 downto 0 do
+    begin
+      SrcFlNm := SrcFiles[i];
+      if not DeleteFile(SrcFlNm) then
+        DelMsg := DelMsg + LE2 + 'Не удалось удалить файл ' +
+          SrcFlNm;
+    end;
+  end;
+
+  finally
+    Progress.Free;
+    DestFiles.Free;
+    SrcFiles.Free;
+  end;
+
+  if ResultMsg <> '' then
+    MsgBox('DX Хранилище файлов', 'Не все файлы были добавлены в хранилище.' +
+      ResultMsg);
+
+  if DelMsg <> '' then
+    MsgBox('DX Хранилище файлов', 'Не все файлы были удалены после копирования.' +
+      DelMsg);
+end;
+
+var
+  ListWnd: TListWindow;
+
+procedure GridDblClick (Sender: TObject);
+begin
+  ListWnd.ModalResult := mrOk;
+end;
+
+procedure LinkAnotherRec (Sender: TObject);
+var
+  FormName: String;
+begin
+  FormName := InputBox ('Переопределение записи хранилища',
+    #13+'Введите имя формы: ', '');
+  if FormName = '' then exit;
+  try
+    ListWnd := TListWindow.Create (FormName, vtGridOnly);
+  except
+    MessageDlg ('DX Хранилище файлов', 'Форма с именем '+'"'+FormName+'"'+
+    ' не найдена.', mtError, [mbAbort]);
+    exit;
+  end;
+  try
+    ListWnd.Toolbar.Hide;
+    ListWnd.Buttons.ShowButtons := [pbOk];
+    ListWnd.Caption := 'Выбирите запись';
+    ListWnd.FormView.Grid.OnDblClick := @GridDblClick;
+    ListWnd.FormView.Form.Open;
+    ListWnd.ShowModal;
+    if not (Self.State in [dsEdit, dsInsert]) then Self.Edit;
+    Self['ID записи'] := ListWnd.FormView.Form.RecId;
+    Self['ID формы'] := ListWnd.FormView.Form.Id;
+    Self['Форма'] := FormName;
+    Self.Post;
+
+  finally
+    if ListWnd <> nil then ListWnd.Free;
+  end;
+end;
+
+procedure OpenLinkRecord (Sender: Tobject);
+var
+  Fm: TdxForm;
+begin
+  try
+    Fm := TdxForm.Create (Self.AsS['Форма']);
+  except
+    MessageDlg ('DX Хранилище файлов', 'Форма с именем '+'"'+Self['Форма']+'"'+
+    ' не найдена.', mtError, [mbAbort]);
+    exit;
+  end;
+  try
+    Fm.Open;
+    if Fm.GoToRecord (Self['ID записи']) then
+      Fm.EditWindow.ShowModal
+    else
+      MessageDlg ('DX Хранилище файлов', 'На форме '+'"'+Self['Форма']+'"'+
+        ' запись ID: '+Self.AsS['ID записи']+' не найдена.', mtError, [mbAbort]);
+  finally
+    if Fm <> nil then Fm.Free;
+  end;
+end;
+
+
+function GetFormName (const FormName:string):Boolean;
+var
+l:TStringList;
+i:integer;
+s1:string;
+begin
+  l:=TStringList.Create;
+  GetForms(l);
+  s1:=UTF8LowerCase(FormName);
+  result:=false;
+  for i:=0 to l.count-1 do
+    if UTF8LowerCase(l.ValueFromIndex[i])=s1 then
+      begin
+        result:=true;
+        break;
+      end;
+  l.free;
+end;
+
+procedure UnLinkBaseRecord (Sender: TObject);
+var
+  Fm : TdxForm;
+  Filter: String;
+begin
+  Self.Refresh;
+  while not Self.EoF do
+  begin
+    if not GetFormName (Self.AsS['Форма']) then
+    begin
+      if Filter = '' then Filter := '[ID записи]=' + IntToStr(Self.AsI['ID записи'])
+        else Filter := Filter +'|'+ '[ID записи]=' + IntToStr(Self.AsI['ID записи']);
+      Self.MoveNext;
+      continue;
+    end;
+
+    Fm := TdxForm.Create (Self.AsS['Форма']);
+    Fm.Open;
+    if not Fm.GoToRecord (Self['ID записи']) then
+     if Filter = '' then Filter := '[ID записи]=' + IntToStr(Self.AsI['ID записи'])
+      else Filter := Filter +'|'+ '[ID записи]=' + IntToStr(Self.AsI['ID записи']);
+    Self.MoveNext;
+  end;
+
+  Self.Close;
+  Self.OpenRecords (filter, nil, true);
+  debug (filter);
+  If Fm <> nil then Fm.Free;
+end;
+
+procedure NoFilesRecords (Sender: TObject);
+var
+  Filter: String;
+begin
+  Self.Refresh;
+  while not Self.EoF do
+  begin
+    if Self.Forms['file'].RecordCount = 0 then
+    if Filter = '' then Filter := '[ID записи]=' + IntToStr(Self.AsI['ID записи'])
+    else Filter := Filter +'|'+ '[ID записи]=' + IntToStr(Self.AsI['ID записи']);
+    Self.MoveNext;
+  end;
+  Self.Close;
+  Self.OpenRecords (filter, nil, true);
+end;
+
+procedure CheckFileExsists (Sender: TObject);
+var
+  msg, i: integer;
+begin
+  if Self.Forms['file'].RecordCount = 0 then exit;
+  if not (Self.State in [dsEdit, dsInsert]) then Self.Edit;
+  try
+    Self.Forms['file'].DisableControls;
+    Self.Forms['file'].MoveFirst;
+    while not Self.Forms['file'].Eof do
+    begin
+      if not FileExists (Self.Forms['file'].Files['Файл'].SourceFileName) then
+      begin
+        inc (i);
+        if Self.Forms['file'].fields['Существование файла'] <> 0 then
+        begin
+          Self.Forms['file'].Edit;
+          Self.Forms['file'].fields['Существование файла'] := 0;
+          Self.Forms['file'].Post;
+        end;
+      end;
+      Self.Forms['file'].MoveNext;
+    end;
+    if i = 0 then exit;
+    msg := MessageDlg ('DX Хранилище файлов', 'Некоторые записи о файлах'+
+      ' отсутствуют на диске по указанному в базе пути.'+#13+#13+
+      'Хотите ли вы удалить их из базы данных?',
+      mtConfirmation, [mbYes, mbNo]);
+    if msg = mrNo then exit;
+    while not Self.Forms['file'].Bof do
+    begin
+      if Self.Forms['file'].fields['Существование файла'] = 0 then
+        Self.Forms['file'].delete
+      else
+        Self.Forms['file'].MovePrior;
+    end;
+  finally
+    Self.Forms['file'].EnableControls;
+    Self.Post;
+  end;
+end;
+
+
+procedure ImportData (Sender: TObject);
+var
+  xDoc, RecNode, FieldNode, TRecNode, TFieldNode, FPath: variant;
+  FieldName: string;
+  i, x, y, z, cn: integer;
+begin
+  try
+    Self.DisableControls;
+    Self.forms['file'].DisableControls;
+    xDoc:=CreateOleObject('MSXML2.DOMDocument');
+    xDoc.async := false;
+    xDoc.validateOnParse := False;
+    FPath := ExtractFilePath(Application.ExeName)+'ExportFileStore.xml';
+    if not FileExists (FPath) then
+    begin
+     msgBox ('Восстановление данных', 'Файл с данными хранилища не найден на жёстком диске!'+
+     #13+'Сохраните данные хранилища на жёсткий диск и повторите попытку.');
+     exit;
+    end;
+    xDoc.Load(FPath);
+    RecNode := xDoc.DocumentElement.ChildNodes;
+    cn := RecNode.length;
+    for i := 0 to cn-1 do
+    begin
+      Self.Append;
+      FieldNode := RecNode.item[i].ChildNodes;
+
+      for x := 0 to FieldNode.length-1 do
+      begin
+        if FieldNode.item[x].NodeName <> 'FileTable' then
+        Self [StringReplace (FieldNode.item[x].NodeName, '_', ' ',
+          [rfReplaceAll, rfIgnoreCase])] := FieldNode.item[x].text
+        else
+          TRecNode := FieldNode.item[x].ChildNodes;
+      end;
+      for y:=0 to TRecNode.length-1 do
+      begin
+        TFieldNode := TRecNode.item[y].ChildNodes;
+        Self.forms['file'].Append;
+        for z:=0 to TFieldNode.length-1 do
+        begin
+          FieldName := StringReplace (TFieldNode.item[z].NodeName, '_', ' ', [rfReplaceAll, rfIgnoreCase]);
+          if FieldName = 'Путь' then
+            FieldName := 'Источник';
+          Self.forms['file'].fields[FieldName] := TFieldNode.item[z].text;
+          if z = TFieldNode.length-1 then
+            Self.forms['file'].Post;
+        end;
+      end;
+    Self.Post;
+    end;
+  msgBox ('Хранилище данных', 'Восстановление данных хранилища завершено.');
+  finally
+    xDoc := Unassigned;
+    Self.EnableControls;
+    Self.forms['file'].EnableControls;
+  end;
+end;
+
+function FindFieldName (Cmp: TComponent): string;
+begin
+  Case Cmp.ClassName of
+    'TdxEdit': Result := TdxEdit(Cmp).FieldName;
+    'TdxCalcEdit': Result := TdxCalcEdit(Cmp).FieldName;
+    'TdxDateEdit': Result := TdxDateEdit(Cmp).FieldName;
+    'TdxTimeEdit': Result := TdxTimeEdit(Cmp).FieldName;
+    'TdxCounter': Result := TdxCounter(Cmp).FieldName;
+    'TdxMemo': Result := TdxMemo(Cmp).FieldName;
+    'TdxCheckBox': Result := TdxCheckBox(Cmp).FieldName;
+    'TdxComboBox': Result := TdxComboBox(Cmp).FieldName;
+    'TdxLookupComboBox': Result := TdxLookupComboBox(Cmp).FieldName;
+    'TdxFile': Result := TdxFile(Cmp).FieldName;
+
+  end;
+end;
+
+
+procedure ExportData (Sender: TObject);
+var
+  i, n: integer;
+  s: string;
+  Cmp: TComponent;
+  FS : TFileStream;
+  FldName, TFldName, FldName_, TFldName_: array of string;
+begin
+    for i:=0 to Self.ComponentCount-1 do
+    begin
+      Cmp := Self.Components[i];
+      if Cmp.ClassName in ['TdxEdit', 'TdxCalcEdit', 'TdxDateEdit', 'TdxTimeEdit',
+        'TdxCounter', 'TdxMemo', 'TdxCheckBox', 'TdxComboBox', 'TdxLookupComboBox',
+        'TdxFile']
+      then
+      begin
+        SetLength (FldName, n+1);
+        SetLength (FldName_, n+1);
+        FldName[n] := FindFieldName (Cmp);
+        FldName_[n] := StringReplace (FindFieldName (Cmp), ' ', '_',
+          [rfReplaceAll, rfIgnoreCase]);
+        inc (n);
+      end;
+    end;
+    n := 0;
+    for i:=0 to Self.forms['file'].ComponentCount-1 do
+    begin
+      Cmp := Self.forms['file'].Components[i];
+      if not (Cmp.ClassName in ['TdxEdit', 'TdxCalcEdit', 'TdxDateEdit', 'TdxTimeEdit',
+        'TdxCounter', 'TdxMemo', 'TdxCheckBox', 'TdxComboBox', 'TdxLookupComboBox',
+        'TdxFile'])
+      then continue;
+      SetLength (TFldName, n+1);
+      SetLength (TFldName_, n+1);
+      TFldName[n] := FindFieldName (Cmp);
+      TFldName_[n] := StringReplace (FindFieldName (Cmp), ' ', '_',
+          [rfReplaceAll, rfIgnoreCase]);
+      inc (n);
+    end;
+
+  try
+    FS := TFileStream.Create(ExtractFilePath(Application.ExeName)+'ExportFileStore.xml', fmCreate);
+  except
+    MsgBox('Ошибка', ExceptionToString(ExceptionType, ''));
+    Exit;
+  end;
+  try
+    S := '<?xml version="1.0" encoding="utf-8"?><FileStore>';
+    FS.Write(S, Length(S));
+    Self.DisableControls;
+    Self.forms['file'].DisableControls;
+    Self.MoveFirst;
+    while not Self.EOF do
+    begin
+      S := '<Record>';
+      for i:=0 to High (FldName) do
+      begin
+        S := S + '<'+FldName_[i]+'>' + Self.AsS[FldName[i]] + '</'+FldName_[i]+'>';
+      end;
+      S := S + '<FileTable>';
+      Self.forms['file'].MoveFirst;
+      while not Self.forms['file'].EOF do
+      begin
+        S := S + '<Record>';
+        for i:=0 to High (TFldName) do
+        begin
+          S := s + '<'+TFldName_[i]+'>' + Self.forms['file'].AsS[TFldName[i]] + '</'+TFldName_[i]+'>';
+        end;
+        s:= s + '</Record>';
+        Self.forms['file'].MoveNext;
+      end;
+    s:= s + '</FileTable></Record>';
+    FS.Write(S, Length(S));
+    Self.MoveNext;
+  end;
+  S := '</FileStore>';
+  FS.Write(S, Length(S));
+  msgBox ('Хранилище данных', 'Сохранение данных на диск завершено.');
+  finally
+    Self.EnableControls;
+    Self.forms['file'].EnableControls;
+    FS.Free;
+  end;
+end;
+
+procedure GridDoubleClick (Sender: Tobject);
+begin
+  Self.forms['file'].EditWindow.ShowModal;
+end;
+
+procedure Form_Create;
+begin
+  //dxGrid1.OnDblClick := @ GridDoubleClick;
+  dxGrid1.PopUpMenu := nil;
+
+  dxButton1.ShowHint := true;
+  dxButton1.Hint := 'Открыть файл';
+  dxButton1.OnClick := @OpenFile;
+  dxButton2.ShowHint := true;
+  dxButton2.Hint := 'Удалить все файлы';
+  dxButton2.OnClick := @DeleteFiles;
+  dxButton3.ShowHint := true;
+  dxButton3.Hint := 'Открыть папку с файлом';
+  dxButton3.OnClick := @OpenFile;
+  dxButton4.ShowHint := true;
+  dxButton4.Hint := 'Сохранить файл';
+  dxButton4.OnClick := @SaveFile;
+  dxButton5.OnClick := @AddFile;
+  dxButton5.ShowHint := true;
+  dxButton5.Hint := 'Добавить файлы';
+  dxButton10.ShowHint := true;
+  dxButton10.Hint := 'Проверить существование файла на диске';
+  dxButton13.ShowHint := true;
+  dxButton13.Hint := 'Удалить выбранный файл';
+
+  dxButton6.OnClick := @UnLinkBaseRecord;
+  dxButton7.OnClick := @NoFilesRecords;
+  dxButton8.OnClick := @LinkAnotherRec;
+  dxButton9.OnClick := @OpenLinkRecord;
+  dxButton10.OnClick := @CheckFileExsists
+  dxButton11.OnClick := @ExportData;
+  dxButton12.OnClick := @ImportData;
+  dxButton13.OnClick := @DeleteSelectedFile;
+end;
+
