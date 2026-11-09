@@ -1,0 +1,452 @@
+// ============================================
+// Расширение "MultiFileUpload"
+// ============================================
+
+{@module
+author= Pozharskiy1991
+version=0.1
+description=Пакетная загрузка файлов из запроса в папку с автоматической обработкой дубликатов и сортировкой по расширениям.
+@}
+
+{@action
+id=7B8C9D2E-2345-6789-10AB-CDEF23456789
+target=button
+origname=MultiFileUpload
+name=Пакетная загрузка файлов
+group=Импорт
+UI=<ui>
+  <!-- Запрос-источник -->
+  <query name="SourceQuery" caption="Запрос-источник" required="1" texthint="Выберите запрос, содержащий данные для выгрузки"/>
+
+  <!-- Поля запроса -->
+  <divider caption="Поля запроса-источника"/>
+  <field name="FileField" caption="Поле с файлом" source="SourceQuery" filter="file" required="1" texthint="Поле типа Файл в запросе"/>
+
+  <!-- Папка назначения -->
+  <divider caption="Параметры выгрузки"/>
+  <folder name="DestFolder" caption="Папка для сохранения" texthint="Выберите папку для сохранения файлов. Если не указана, будет предложено выбрать при выполнении"/>
+  <checkbox name="UseSubfolders" caption="Сортировать по расширениям файлов" defaultvalue="0" texthint="Создавать подпапки для каждого типа файлов (pdf, jpg, docx и т.д.)"/>
+  <checkbox name="SkipDuplicates" caption="Пропускать файлы с одинаковыми именами" defaultvalue="0" texthint="Если включено, файлы с одинаковыми именами не будут перезаписываться"/>
+  <checkbox name="OpenFolder" caption="Открыть папку после сохранения" defaultvalue="1" texthint="Открыть папку с файлами после завершения"/>
+</ui>
+description=<html>
+<b>Пакетная загрузка файлов</b><br/><br/>
+
+<b>Назначение:</b><br/>
+Расширение позволяет сохранить все файлы из выбранного поля запроса в указанную папку.<br/>
+Автоматически обрабатывает файлы с одинаковыми именами, добавляя индекс в скобках.<br/>
+Поддерживает сортировку файлов по расширениям в отдельные подпапки.<br/><br/>
+
+<b>Параметры:</b><br/>
+• <b>Запрос-источник</b> - запрос на форме, содержащий файлы<br/>
+• <b>Поле с файлом</b> - поле типа Файл в запросе<br/>
+• <b>Папка для сохранения</b> - куда сохранять файлы. Если не указана, при выполнении будет предложено выбрать<br/>
+• <b>Сортировать по расширениям файлов</b> - создавать подпапки для каждого типа файлов<br/>
+• <b>Пропускать файлы с одинаковыми именами</b> - не перезаписывать существующие файлы<br/>
+• <b>Открыть папку после сохранения</b> - открыть папку с файлами после завершения<br/><br/>
+
+<b>Обработка дубликатов:</b><br/>
+При выгрузке файлов с одинаковыми именами:<br/>
+• Первый файл сохраняется с оригинальным именем<br/>
+• Последующие файлы получают индекс в скобках: файл(1).txt, файл(2).txt и т.д.<br/>
+• Если включена опция "Пропускать дубликаты", файлы с существующими именами пропускаются<br/><br/>
+
+<b>Сортировка по расширениям:</b><br/>
+При включенной опции "Сортировать по расширениям файлов":<br/>
+• Файлы с расширением .pdf сохраняются в папку pdf\<br/>
+• Файлы с расширением .jpg — в папку jpg\<br/>
+• Файлы без расширения — в папку no_extension\<br/><br/>
+
+<b>Требования:</b><br/>
+• Наличие на форме запроса с полем типа Файл<br/>
+</html>
+@}
+
+// ============================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+var
+  g_SourceQuery: string;
+  g_FileField: string;
+  g_DestFolder: string;
+  g_UseSubfolders: Integer;
+  g_SkipDuplicates: Integer;
+  g_OpenFolder: Integer;
+
+// ============================================
+// ФУНКЦИЯ ДЛЯ ПОКАЗА СООБЩЕНИЙ
+// ============================================
+procedure ShowMsg(const Title, Msg: String);
+begin
+  MessageDlg(Title, Msg, mtInformation, [mbOk]);
+end;
+
+// ============================================
+// ФУНКЦИЯ ДЛЯ ВЫБОРА ПАПКИ
+// ============================================
+function SelectFolder: string;
+var
+  SelectDialog: TSelectDirectoryDialog;
+begin
+  Result := '';
+  SelectDialog := TSelectDirectoryDialog.Create(nil);
+  try
+    SelectDialog.Title := 'Выберите папку для сохранения файлов';
+    SelectDialog.Options := [ofHideReadOnly];
+    if SelectDialog.Execute then
+      Result := SelectDialog.FileName;
+  finally
+    SelectDialog.Free;
+  end;
+end;
+
+// ============================================
+// БЕЗОПАСНОЕ ПРЕОБРАЗОВАНИЕ
+// ============================================
+function VarToStrSafe(V: Variant): string;
+begin
+  Result := '';
+  try
+    if not VarIsEmpty(V) and not VarIsNull(V) then
+      Result := VarToStr(V);
+  except
+    Result := '';
+  end;
+end;
+
+function VarToIntSafe(V: Variant): Integer;
+var
+  StrVal: string;
+begin
+  Result := 0;
+  try
+    if not VarIsEmpty(V) and not VarIsNull(V) then
+    begin
+      StrVal := VarToStr(V);
+      if StrVal <> '' then
+        Result := StrToInt(StrVal);
+    end;
+  except
+    Result := 0;
+  end;
+end;
+
+// ============================================
+// ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ РАСШИРЕНИЯ ФАЙЛА БЕЗ ТОЧКИ
+// ============================================
+function GetFileExtension(const FileName: string): string;
+begin
+  Result := ExtractFileExt(FileName);
+  if Copy(Result, 1, 1) = '.' then
+    Result := Copy(Result, 2, Length(Result) - 1);
+  Result := LowerCase(Result);
+end;
+
+// ============================================
+// ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ПОДПАПКИ ПО РАСШИРЕНИЮ
+// ============================================
+function GetSubfolderByExtension(const FileName: string): string;
+var
+  Ext: string;
+begin
+  Ext := GetFileExtension(FileName);
+  if Ext <> '' then
+    Result := Ext + '\'
+  else
+    Result := 'no_extension\';
+end;
+
+// ============================================
+// ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ УНИКАЛЬНОГО ИМЕНИ ФАЙЛА
+// ============================================
+function GetUniqueFileName(const DestPath: string; const FileName: string; SkipDuplicates: Boolean): string;
+var
+  BaseName, Ext: string;
+  i: Integer;
+  TestName: string;
+begin
+  Result := DestPath + FileName;
+
+  // Если файл не существует или разрешена перезапись
+  if not FileExists(Result) then
+    Exit;
+
+  // Если включена опция пропуска дубликатов
+  if SkipDuplicates then
+  begin
+    Result := '';
+    Exit;
+  end;
+
+  // Разбираем имя файла
+  Ext := ExtractFileExt(FileName);
+  BaseName := ChangeFileExt(FileName, '');
+
+  // Ищем свободное имя с индексом
+  i := 1;
+  repeat
+    TestName := DestPath + BaseName + '(' + IntToStr(i) + ')' + Ext;
+    if not FileExists(TestName) then
+    begin
+      Result := TestName;
+      Exit;
+    end;
+    Inc(i);
+  until False;
+end;
+
+// ============================================
+// ФУНКЦИЯ КОПИРОВАНИЯ ФАЙЛА
+// ============================================
+procedure CopyFileEx(const SrcFileName, DestFileName: String);
+var
+  SrcSt, DestSt: TFileStream;
+  Buf: String;
+  BufSize, ReadBytes: Integer;
+  FileChanged: LongInt;
+begin
+  ForceDirectories(ExtractFilePath(DestFileName));
+
+  SrcSt := nil;
+  DestSt := nil;
+  FileChanged := FileAge(SrcFileName);
+  BufSize := 1024 * 1024;
+  SetLength(Buf, BufSize);
+  try
+    SrcSt := TFileStream.Create(SrcFileName, fmOpenRead + fmShareDenyNone);
+    DestSt := TFileStream.Create(DestFileName, fmCreate);
+    repeat
+      ReadBytes := SrcSt.Read(Buf, BufSize);
+      DestSt.Write(Buf, ReadBytes);
+    until ReadBytes < BufSize;
+  finally
+    if SrcSt <> nil then SrcSt.Free;
+    if DestSt <> nil then DestSt.Free;
+  end;
+
+  FileSetDate(DestFileName, FileChanged);
+end;
+
+// ============================================
+// ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ЗАПРОСА
+// ============================================
+function GetQueryByName(Form: TdxForm; const QueryName: string): TdxQueryGrid;
+begin
+  Result := nil;
+  try
+    Result := Form.Queries[QueryName];
+  except
+    Result := nil;
+  end;
+end;
+
+// ============================================
+// ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ПУТИ К ФАЙЛУ ИЗ ЗАПРОСА
+// ============================================
+function GetFilePathFromQuery(Query: TdxQueryGrid; const FileField: string): string;
+var
+  SourcePath, StoredPath: string;
+begin
+  Result := '';
+  try
+    // Пытаемся получить исходный путь
+    SourcePath := Query.GetSourceFileName(FileField);
+    if SourcePath <> '' then
+    begin
+      Result := SourcePath;
+      Exit;
+    end;
+
+    // Если исходный путь пустой, пробуем получить имя в папке хранения
+    StoredPath := Query.GetStoredFileName(FileField);
+    if StoredPath <> '' then
+    begin
+      Result := StoredPath;
+    end;
+  except
+    Result := '';
+  end;
+end;
+
+// ============================================
+// ОСНОВНАЯ ПРОЦЕДУРА ВЫГРУЗКИ ФАЙЛОВ
+// ============================================
+procedure DoExportFiles(Sender: TObject);
+var
+  Form: TdxForm;
+  Query: TdxQueryGrid;
+  DestDir, SubDir: string;
+  FileCount, SavedCount, SkippedCount, CurrentRecNo: Integer;
+  FilePath, FileName: string;
+  UniqueName: string;
+begin
+  Form := Self;
+
+  try
+    if Form = nil then
+    begin
+      ShowMsg('Ошибка', 'Не удалось получить активную форму.');
+      Exit;
+    end;
+
+    Query := GetQueryByName(Form, g_SourceQuery);
+    if Query = nil then
+    begin
+      ShowMsg('Ошибка', 'Запрос "' + g_SourceQuery + '" не найден на форме.');
+      Exit;
+    end;
+
+    if Query.RecordCount = 0 then
+    begin
+      ShowMsg('Ошибка', 'В запросе нет данных.');
+      Exit;
+    end;
+
+    // Если папка не указана в настройках — предлагаем выбрать
+    if g_DestFolder = '' then
+    begin
+      g_DestFolder := SelectFolder;
+      if g_DestFolder = '' then
+      begin
+        ShowMsg('Информация', 'Выбор папки отменен. Операция прервана.');
+        Exit;
+      end;
+    end;
+
+    DestDir := IncludeTrailingPathDelimiter(g_DestFolder);
+    if not DirectoryExists(DestDir) then
+    begin
+      if not ForceDirectories(DestDir) then
+      begin
+        ShowMsg('Ошибка', 'Не удалось создать папку: ' + DestDir);
+        Exit;
+      end;
+    end;
+
+    CurrentRecNo := Query.RecNo;
+    Query.DisableControls;
+
+    SavedCount := 0;
+    SkippedCount := 0;
+    FileCount := 0;
+
+    Query.MoveFirst;
+    while not Query.EOF do
+    begin
+      Inc(FileCount);
+
+      // Получаем путь к файлу
+      FilePath := GetFilePathFromQuery(Query, g_FileField);
+
+      if (FilePath <> '') and FileExists(FilePath) then
+      begin
+        FileName := ExtractFileName(FilePath);
+
+        // Определяем подпапку
+        if g_UseSubfolders = 1 then
+        begin
+          // Создаем подпапку по расширению файла
+          SubDir := DestDir + GetSubfolderByExtension(FileName);
+        end
+        else
+          SubDir := DestDir;
+
+        // Создаем подпапку, если её нет
+        if not DirectoryExists(SubDir) then
+          ForceDirectories(SubDir);
+
+        // Получаем уникальное имя файла
+        UniqueName := GetUniqueFileName(SubDir, FileName, g_SkipDuplicates = 1);
+
+        if UniqueName = '' then
+        begin
+          // Файл пропущен (дубликат)
+          Inc(SkippedCount);
+        end
+        else
+        begin
+          try
+            CopyFileEx(FilePath, UniqueName);
+            Inc(SavedCount);
+          except
+            // Ошибка копирования
+          end;
+        end;
+      end;
+
+      Query.MoveNext;
+    end;
+
+    Query.MoveTo(CurrentRecNo);
+    Query.EnableControls;
+
+    // Показываем результат
+    ShowMsg('Готово', 'Выгрузка файлов завершена:' + #13#10 + #13#10 +
+      'Всего записей в запросе: ' + IntToStr(FileCount) + #13#10 +
+      'Сохранено файлов: ' + IntToStr(SavedCount) + #13#10 +
+      'Пропущено дубликатов: ' + IntToStr(SkippedCount) + #13#10 +
+      'Папка: ' + DestDir);
+
+    if g_OpenFolder = 1 then
+      ShellExecute('explore', DestDir, '', '', 1);
+
+  except
+    ShowMsg('Ошибка', 'Ошибка при выгрузке файлов: ' + VarToStrSafe(ExceptionParam));
+  end;
+end;
+
+// ============================================
+// ПОЛУЧЕНИЕ ПАРАМЕТРОВ ИЗ UI
+// ============================================
+procedure MultiFileUpload(
+  SourceQuery: Variant;
+  FileField: Variant;
+  DestFolder: Variant;
+  UseSubfolders: Variant;
+  SkipDuplicates: Variant;
+  OpenFolder: Variant);
+begin
+  g_SourceQuery := VarToStrSafe(SourceQuery);
+  g_FileField := VarToStrSafe(FileField);
+  g_DestFolder := VarToStrSafe(DestFolder);
+  g_UseSubfolders := VarToIntSafe(UseSubfolders);
+  if g_UseSubfolders < 0 then g_UseSubfolders := 0;
+
+  g_SkipDuplicates := VarToIntSafe(SkipDuplicates);
+  if g_SkipDuplicates < 0 then g_SkipDuplicates := 0;
+
+  g_OpenFolder := VarToIntSafe(OpenFolder);
+  if g_OpenFolder < 0 then g_OpenFolder := 1;
+
+  DoExportFiles(nil);
+end;
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+procedure Init;
+begin
+  g_SourceQuery := '';
+  g_FileField := '';
+  g_DestFolder := '';
+  g_UseSubfolders := 0;
+  g_SkipDuplicates := 0;
+  g_OpenFolder := 1;
+
+  Debug('Расширение "MultiFileUpload" v0.2 инициализировано');
+end;
+
+// ============================================
+// ДЕИНИЦИАЛИЗАЦИЯ
+// ============================================
+procedure Done;
+begin
+  Debug('Расширение "MultiFileUpload" деинициализировано');
+end;
+
+// ============================================
+// ТОЧКА ВХОДА
+// ============================================
+begin
+  Init;
+end.

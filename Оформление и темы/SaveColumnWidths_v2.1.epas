@@ -1,0 +1,332 @@
+{@module
+Author=RS47
+Version=2.1
+Description=Автоматическое сохранение ширины столбцов для подчинённых таблиц (dxGrid) и запросов (dxQueryGrid). Настройки сохраняются при закрытии формы или закладки и восстанавливаются при открытии. Отдельно для каждого пользователя.
+@}
+
+{@action
+Id=COLUMNS-AUTO-E3F4A5B1-2C8D-4E6F-9A7B-5C3D2E1F4A6B
+Target=main
+OrigName=InitAutoColumnSettings
+Name=Автосохранение ширины колонок
+Group=Интерфейс
+UI=<ui>
+  <text name="SettingsPath" caption="Путь к папке настроек" defaultvalue="" texthint="Оставьте пустым для использования папки ColumnSettings рядом с программой" />
+</ui>
+Description=
+<b>📌 Автоматическое сохранение ширины колонок</b><br/><br/>
+Автоматически сохраняет ширину колонок при закрытии формы и восстанавливает при открытии.<br/><br/>
+<b>🔧 ВОЗМОЖНОСТИ:</b><br/>
+• ✅ Автоматическое сохранение (не требует нажатия кнопок)<br/>
+• ✅ Поддержка TdxGrid и TdxQueryGrid<br/>
+• ✅ Отдельные настройки для каждого пользователя<br/>
+• ✅ Настройки сохраняются в папке ColumnSettings<br/>
+<br/>
+<b>📖 ИНСТРУКЦИЯ:</b><br/>
+1. Добавьте действие в настройки базы данных (Target=main)<br/>
+2. При необходимости укажите путь к папке настроек<br/>
+3. Перезапустите базу данных<br/>
+4. Ширина колонок будет автоматически сохраняться и восстанавливаться<br/>
+<br/>
+<b>💡 ПРИМЕЧАНИЯ:</b><br/>
+• Если путь не указан, настройки сохраняются в папку ColumnSettings рядом с программой<br/>
+• Настройки сохраняются отдельно для каждого пользователя базы данных<br/>
+• Для применения изменений перезапустите базу данных<br/>
+@}
+
+// ============================================================================
+// КОНСТАНТЫ И ПЕРЕМЕННЫЕ
+// ============================================================================
+
+const
+  SettingsFolder = 'ColumnSettings';
+  FileExtension = '.ini';
+
+type
+  TFormRecord = record
+    Form: TdxForm;
+    OldDestroy: TNotifyEvent;
+  end;
+
+var
+  FormsData: array of TFormRecord;
+  MainWindow_OldOnCreateForm: TCreateFormEvent;
+  MainWindow_OldOnDataBaseClose: TNotifyEvent;
+  GlobalSettingsPath: string;
+  IsInitialized: Boolean;
+
+// ============================================================================
+// ФУНКЦИИ ДЛЯ РАБОТЫ С ПУТЯМИ
+// ============================================================================
+
+function GetSettingsPath(CustomPath: string): string;
+begin
+  if Trim(CustomPath) <> '' then
+    Result := IncludeTrailingPathDelimiter(CustomPath)
+  else
+    Result := GetCurrentDir + '\' + SettingsFolder + '\';
+
+  if not DirectoryExists(Result) then
+    CreateDir(Result);
+end;
+
+function GetSettingsFileName(FormName, SettingsPath: string): string;
+begin
+  Result := GetSettingsPath(SettingsPath) + FormName + FileExtension;
+end;
+
+function SafeStrToInt(Value: string; Default: Integer): Integer;
+begin
+  Value := Trim(Value);
+  if Value = '' then
+    Result := Default
+  else
+    try
+      Result := StrToInt(Value);
+    except
+      Result := Default;
+    end;
+end;
+
+// ============================================================================
+// ПОИСК ФОРМЫ В МАССИВЕ
+// ============================================================================
+
+function FindFormIndex(Form: TdxForm): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to Length(FormsData) - 1 do
+    if FormsData[i].Form = Form then
+    begin
+      Result := i;
+      Exit;
+    end;
+end;
+
+// ============================================================================
+// СОХРАНЕНИЕ ШИРИНЫ КОЛОНОК
+// ============================================================================
+
+procedure SaveColumnSettings(Form: TdxForm; FormName, SettingsPath: string);
+var
+  INI: TIniFile;
+  FileName: string;
+  UserName: string;
+  i, j: Integer;
+  comp: TComponent;
+  dxGrid: TdxGrid;
+  queryGrid: TdxQueryGrid;
+  SectionName: string;
+  Options: TIniFileOptions;
+begin
+  if Form = nil then Exit;
+
+  FileName := GetSettingsFileName(FormName, SettingsPath);
+  UserName := GetCurrentUser;
+  Options := [];
+
+  INI := TIniFile.Create(FileName, Options);
+  try
+    for i := 0 to Form.ComponentCount - 1 do
+    begin
+      comp := Form.Components[i];
+
+      if comp is TdxGrid then
+      begin
+        dxGrid := TdxGrid(comp);
+        SectionName := UserName + '\' + dxGrid.Name;
+        for j := 0 to dxGrid.Columns.Count - 1 do
+          INI.WriteString(SectionName, IntToStr(j), IntToStr(dxGrid.Columns[j].Width));
+      end
+      else if comp is TdxQueryGrid then
+      begin
+        queryGrid := TdxQueryGrid(comp);
+        SectionName := UserName + '\' + queryGrid.Name;
+        for j := 0 to queryGrid.Columns.Count - 1 do
+          INI.WriteString(SectionName, IntToStr(j), IntToStr(queryGrid.Columns[j].Width));
+      end;
+    end;
+    INI.UpdateFile;
+  finally
+    INI.Free;
+  end;
+end;
+
+// ============================================================================
+// ЗАГРУЗКА ШИРИНЫ КОЛОНОК
+// ============================================================================
+
+procedure LoadColumnSettings(Form: TdxForm; FormName, SettingsPath: string);
+var
+  INI: TIniFile;
+  FileName: string;
+  UserName: string;
+  i, j: Integer;
+  comp: TComponent;
+  dxGrid: TdxGrid;
+  queryGrid: TdxQueryGrid;
+  SectionName: string;
+  Width: Integer;
+  Options: TIniFileOptions;
+begin
+  if Form = nil then Exit;
+
+  FileName := GetSettingsFileName(FormName, SettingsPath);
+  if not FileExists(FileName) then Exit;
+
+  UserName := GetCurrentUser;
+  Options := [];
+
+  INI := TIniFile.Create(FileName, Options);
+  try
+    for i := 0 to Form.ComponentCount - 1 do
+    begin
+      comp := Form.Components[i];
+
+      if comp is TdxGrid then
+      begin
+        dxGrid := TdxGrid(comp);
+        SectionName := UserName + '\' + dxGrid.Name;
+        if INI.SectionExists(SectionName) then
+          for j := 0 to dxGrid.Columns.Count - 1 do
+          begin
+            Width := SafeStrToInt(INI.ReadString(SectionName, IntToStr(j), '0'), 0);
+            if Width > 0 then
+              dxGrid.Columns[j].Width := Width;
+          end;
+      end
+      else if comp is TdxQueryGrid then
+      begin
+        queryGrid := TdxQueryGrid(comp);
+        SectionName := UserName + '\' + queryGrid.Name;
+        if INI.SectionExists(SectionName) then
+          for j := 0 to queryGrid.Columns.Count - 1 do
+          begin
+            Width := SafeStrToInt(INI.ReadString(SectionName, IntToStr(j), '0'), 0);
+            if Width > 0 then
+              queryGrid.Columns[j].Width := Width;
+          end;
+      end;
+    end;
+  finally
+    INI.Free;
+  end;
+end;
+
+// ============================================================================
+// ОБРАБОТЧИК ЗАКРЫТИЯ ФОРМЫ
+// ============================================================================
+
+procedure FormDestroyHandler(Sender: TObject);
+var
+  idx: Integer;
+  OldDestroy: TNotifyEvent;
+  Form: TdxForm;
+begin
+  if not (Sender is TdxForm) then Exit;
+  Form := TdxForm(Sender);
+
+  idx := FindFormIndex(Form);
+  if idx >= 0 then
+  begin
+    SaveColumnSettings(Form, Form.Name, GlobalSettingsPath);
+
+    OldDestroy := FormsData[idx].OldDestroy;
+
+    FormsData[idx] := FormsData[Length(FormsData) - 1];
+    SetLength(FormsData, Length(FormsData) - 1);
+
+    if OldDestroy <> nil then
+      OldDestroy(Sender);
+  end;
+end;
+
+// ============================================================================
+// НАСТРОЙКА ФОРМЫ
+// ============================================================================
+
+procedure SetupForm(Form: TdxForm);
+var
+  idx: Integer;
+begin
+  if Form = nil then Exit;
+  if FindFormIndex(Form) >= 0 then Exit;
+
+  idx := Length(FormsData);
+  SetLength(FormsData, idx + 1);
+  FormsData[idx].Form := Form;
+  FormsData[idx].OldDestroy := Form.OnDestroy;
+
+  Form.OnDestroy := @FormDestroyHandler;
+
+  LoadColumnSettings(Form, Form.Name, GlobalSettingsPath);
+end;
+
+// ============================================================================
+// ОБРАБОТЧИК СОЗДАНИЯ ФОРМЫ
+// ============================================================================
+
+procedure MainWindow_OnCreateForm(Sender: TObject; Form: TdxForm);
+begin
+  if MainWindow_OldOnCreateForm <> nil then
+    MainWindow_OldOnCreateForm(Sender, Form);
+
+  SetupForm(Form);
+end;
+
+// ============================================================================
+// НАСТРОЙКА ВСЕХ ОТКРЫТЫХ ФОРМ
+// ============================================================================
+
+procedure SetupAllOpenForms;
+var
+  i: Integer;
+  FormView: TFormView;
+begin
+  if MainWindow = nil then Exit;
+
+  for i := 0 to MainWindow.Pages.PageCount - 1 do
+  begin
+    FormView := MainWindow.FormViews[i];
+    if FormView <> nil then
+      SetupForm(FormView.Form);
+  end;
+end;
+
+// ============================================================================
+// ЗАКРЫТИЕ БАЗЫ ДАННЫХ
+// ============================================================================
+
+procedure MainWindow_OnDataBaseClose(Sender: TObject);
+begin
+  SetLength(FormsData, 0);
+  IsInitialized := False;
+
+  if MainWindow_OldOnDataBaseClose <> nil then
+    MainWindow_OldOnDataBaseClose(Sender);
+end;
+
+// ============================================================================
+// ГЛАВНОЕ ДЕЙСТВИЕ
+// ============================================================================
+
+procedure InitAutoColumnSettings(SettingsPath: string);
+begin
+  if IsInitialized then Exit;
+
+  GlobalSettingsPath := SettingsPath;
+
+  GetSettingsPath(GlobalSettingsPath);
+
+  MainWindow_OldOnCreateForm := MainWindow.OnCreateForm;
+  MainWindow.OnCreateForm := @MainWindow_OnCreateForm;
+
+  MainWindow_OldOnDataBaseClose := MainWindow.OnDataBaseClose;
+  MainWindow.OnDataBaseClose := @MainWindow_OnDataBaseClose;
+
+  SetupAllOpenForms;
+
+  IsInitialized := True;
+end;

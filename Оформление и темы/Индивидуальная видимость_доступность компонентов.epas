@@ -1,0 +1,424 @@
+// ============================================
+// Расширение "Индивидуальная видимость/доступность компонентов"
+// Версия 1.0
+// Основано на расширении "VisibleEnableByCondition" (Павел Дуборкин)
+// ============================================
+
+{@module
+Author=Developer
+Version=1.0
+HomePage=https://forum.mydataexpress.ru/
+Description=Управление видимостью/доступностью/редактированием компонентов по индивидуальным условиям. Каждому компоненту можно задать своё условие.
+@}
+
+{@action
+Id=A1B2C3D4-E5F6-7890-ABCD-EF1234567890
+Target=form
+OrigName=ComponentConditionalProps
+Name=Индивидуальные свойства компонентов
+Group=Свойства компонентов
+UI=<ui>
+  <divider caption="Настройка компонентов"/>
+  <grid name="grid" caption="Компоненты" height="400">
+    <component name="cmp" caption="Компонент" required="1"/>
+    <expr name="condition" caption="Условие" required="1" texthint="Выражение, определяющее видимость/доступность компонента. Например: [Статус]='Активен'"/>
+    <list name="ve_prop" caption="Управление свойством" items="Доступность;Видимость;Редактирование" required="1"/>
+  </grid>
+
+  <divider caption="Дополнительные настройки"/>
+  <checkbox name="stateevents" caption="Реагировать на события добавления/изменения записи" defaultvalue="0" texthint="Позволяет обрабатывать условия при добавлении и редактировании записи"/>
+
+  <ifgrid grid="grid">
+    <!-- Проверка на дубликаты компонентов в таблице -->
+    <if expr="GetValuesCount(grid, cmp, GetText(cmp))>1"
+      msg="Компонент &quot;`GetText(cmp)`&quot; добавлен несколько раз. Каждый компонент может быть настроен только один раз."
+      focus="cmp"/>
+
+    <!-- Проверка на неподдерживаемое свойство "Редактирование" -->
+    <if expr="ValueIn(GetComponentType(cmp), 'tdxpagecontrol', 'tdxtabsheet',
+      'tdxgroupbox', 'tdxbutton', 'tdxlabel', 'tdxobjectfield', 'tdximage',
+      'tdxgrid', 'tdxquerygrid', 'tdxshape', 'tdxpivotgrid', 'tdxchart') & GetText(ve_prop)='Редактирование'"
+      msg="Нельзя управлять свойством &quot;Редактирование&quot; для компонента &quot;`GetTypeText(cmp)`&quot;."
+      focus="ve_prop"/>
+  </ifgrid>
+</ui>
+Description=<html>
+<b>Индивидуальные свойства компонентов по условиям v1.0</b><br/><br/>
+
+<b>Назначение:</b><br/>
+Расширение позволяет задать <b>индивидуальное условие</b> для каждого компонента, определяющее его видимость, доступность или возможность редактирования.<br/><br/>
+
+<b>Отличия от стандартного действия «Видимость компонентов по условию»:</b><br/>
+• <b>Условие задаётся в таблице для каждого компонента отдельно</b>, а не одно на всех<br/>
+• <b>Проверка на дубликаты</b> — каждый компонент можно настроить только один раз<br/><br/>
+
+<b>Как настроить:</b><br/>
+В таблице <b>"Компоненты"</b> для каждой строки укажите:<br/>
+   - <b>Компонент</b> — компонент на форме<br/>
+   - <b>Условие</b> — выражение, определяющее свойство (например, <code>[Статус]='Активен'</code>)<br/>
+   - <b>Управление свойством</b> — Доступность, Видимость или Редактирование<br/><br/>
+
+<b>Примеры условий:</b><br/>
+• <code>[Сумма] > 0</code><br/>
+• <code>[Статус] = 'Новый'</code><br/>
+• <code>EDITREC()</code> — только при редактировании<br/>
+• <code>NEWREC()</code> — только при создании новой записи<br/><br/>
+
+<b>Примечания:</b><br/>
+• Компонент видим/доступен/редактируем, если <b>условие истинно</b><br/>
+• Действие срабатывает при переходе на запись, изменении поля, сохранении или отмене<br/>
+• Флажок «Реагировать на события» включает обработку при вставке и редактировании<br/>
+</html>
+@}
+
+type
+  TContextKind = (cScroll, cCancel, cPost, cInsert, cEdit, cDuplicate, cChange);
+  TContext = set of TContextKind;
+
+  TCCPRecord = record
+    Fm: TdxForm;
+    Cmps: TVariantArray2d;       // Таблица: [0]=имя компонента, [1]=условие, [2]=свойство
+    AfterScroll, AfterCancel, AfterPost, AfterInsert, AfterEdit,
+    AfterDuplicate: TNotifyEvent;
+    FieldChange: TFieldChangeEvent;
+    Context: TContext;
+  end;
+
+var
+  CCPData: array of TCCPRecord;
+  CCP_OldDBClose: TNotifyEvent;
+
+// ============================================
+// ОБРАБОТЧИК ЗАКРЫТИЯ БАЗЫ ДАННЫХ
+// ============================================
+procedure CCP_DBClose(Sender: TObject);
+begin
+  SetLength(CCPData, 0);
+  if CCP_OldDBClose <> nil then CCP_OldDBClose(Sender);
+end;
+
+// ============================================
+// ПОИСК ЭЛЕМЕНТА МАССИВА ПО ФОРМЕ
+// ============================================
+function CCP_GetIndex(Fm: TObject; ContextKind: TContextKind): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := High(CCPData) downto 0 do
+    if (CCPData[i].Fm = Fm) and not (ContextKind in CCPData[i].Context) then
+    begin
+      Result := i;
+      Exit;
+    end;
+
+  // Сбрасываем флаги для повторной обработки (вложенные события)
+  for i := 0 to High(CCPData) do
+    Exclude(CCPData[i].Context, ContextKind);
+  Result := CCP_GetIndex(Fm, ContextKind);
+end;
+
+// ============================================
+// УСТАНОВКА АКТИВНОЙ ВИДИМОЙ ЗАКЛАДКИ
+// ============================================
+procedure CCP_SetActiveVisiblePage(Pages: TdxPageControl);
+var
+  i: Integer;
+  P: TTabSheet;
+begin
+  for i := 0 to Pages.PageCount - 1 do
+  begin
+    P := Pages.Pages[i];
+    if P.TabVisible then
+    begin
+      Pages.ActivePage := P;
+      Exit;
+    end;
+  end;
+end;
+
+// ============================================
+// ОСНОВНОЕ ДЕЙСТВИЕ: ПРИМЕНЕНИЕ СВОЙСТВ К КОМПОНЕНТАМ
+// ============================================
+procedure CCP_ApplyProperties(var CCP: TCCPRecord);
+var
+  i, j: Integer;
+  C: TControl;
+  CmpName, CmpCondition, CmpProp: string;
+  b: Boolean;
+  PM: TPopupMenu;
+  MI: TMenuItem;
+  dxFile: TdxFile;
+  dxDBImage: TdxDBImage;
+  dxTabSheet: TdxTabSheet;
+  dxPageControl: TdxPageControl;
+begin
+  for i := 0 to Length(CCP.Cmps) - 1 do
+  begin
+    // Получаем данные из таблицы
+    CmpName := VarToStr(CCP.Cmps[i][0]);
+    CmpCondition := VarToStr(CCP.Cmps[i][1]);
+    CmpProp := VarToStr(CCP.Cmps[i][2]);
+
+    // Находим компонент
+    C := TControl(CCP.Fm.FindComponent(CmpName));
+    if C = nil then Continue;
+
+    // Вычисляем условие для ЭТОГО компонента
+    try
+      b := EvalExpr(CmpCondition, CCP.Fm);
+    except
+      // Если выражение не вычислилось — пропускаем компонент
+      Continue;
+    end;
+
+    // ===== ДОСТУПНОСТЬ / РЕДАКТИРОВАНИЕ =====
+    if (CmpProp = 'Доступность') or (CmpProp = 'Редактирование') then
+    begin
+      if C.ClassName = 'TdxFile' then
+      begin
+        dxFile := TdxFile(C);
+        PM := TPopupMenu(dxFile.Components[1]);
+        for j := 0 to PM.Items.Count - 1 do
+        begin
+          MI := TMenuItem(PM.Items[j]);
+          if j <> MI_FILE_OPEN then MI.Visible := b;
+        end;
+      end
+      else if C.ClassName = 'TdxDBImage' then
+      begin
+        dxDBImage := TdxDBImage(C);
+        PM := TPopupMenu(dxDBImage.Components[0]);
+        for j := 0 to PM.Items.Count - 1 do
+        begin
+          MI := TMenuItem(PM.Items[j]);
+          if j <> MI_DBIMAGE_OPEN then MI.Visible := b;
+        end;
+      end
+      else
+      begin
+        if CmpProp = 'Доступность' then
+          C.Enabled := b
+        else
+          try
+            SetPropValue(C, 'ReadOnly', not b);
+          except
+            // Игнорируем ошибку установки ReadOnly
+          end;
+      end;
+    end
+    // ===== ВИДИМОСТЬ =====
+    else
+    begin
+      C.Visible := b;
+
+      // Особая обработка для закладок
+      if C.ClassName = 'TdxTabSheet' then
+      begin
+        dxTabSheet := TdxTabSheet(C);
+        dxPageControl := TdxPageControl(dxTabSheet.PageControl);
+        dxTabSheet.TabVisible := b;
+
+        if (dxPageControl.ActivePage = dxTabSheet) and (not dxTabSheet.TabVisible) then
+          CCP_SetActiveVisiblePage(dxPageControl);
+
+        dxPageControl.Visible := dxPageControl.ActivePage <> nil;
+      end;
+    end;
+  end;
+end;
+
+// ============================================
+// ОБРАБОТЧИКИ СОБЫТИЙ ФОРМЫ
+// ============================================
+
+procedure CCP_AfterScroll(Sender: TObject);
+var
+  CCP: TCCPRecord;
+  i: Integer;
+begin
+  i := CCP_GetIndex(Sender, cScroll);
+  CCP := CCPData[i];
+  Include(CCPData[i].Context, cScroll);
+  try
+    if CCP.AfterScroll <> nil then CCP.AfterScroll(Sender);
+  finally
+    Exclude(CCPData[i].Context, cScroll);
+  end;
+  CCP_ApplyProperties(CCP);
+end;
+
+procedure CCP_AfterCancel(Sender: TObject);
+var
+  CCP: TCCPRecord;
+  i: Integer;
+begin
+  i := CCP_GetIndex(Sender, cCancel);
+  CCP := CCPData[i];
+  Include(CCPData[i].Context, cCancel);
+  try
+    if CCP.AfterCancel <> nil then CCP.AfterCancel(Sender);
+  finally
+    Exclude(CCPData[i].Context, cCancel);
+  end;
+  CCP_ApplyProperties(CCP);
+end;
+
+procedure CCP_AfterPost(Sender: TObject);
+var
+  CCP: TCCPRecord;
+  i: Integer;
+begin
+  i := CCP_GetIndex(Sender, cPost);
+  CCP := CCPData[i];
+  Include(CCPData[i].Context, cPost);
+  try
+    if CCP.AfterPost <> nil then CCP.AfterPost(Sender);
+  finally
+    Exclude(CCPData[i].Context, cPost);
+  end;
+  CCP_ApplyProperties(CCP);
+end;
+
+procedure CCP_FieldChange(Sender, Control: TObject; const FieldName: String);
+var
+  CCP: TCCPRecord;
+  i: Integer;
+begin
+  i := CCP_GetIndex(Sender, cChange);
+  CCP := CCPData[i];
+  Include(CCPData[i].Context, cChange);
+  try
+    if CCP.FieldChange <> nil then CCP.FieldChange(Sender, Control, FieldName);
+  finally
+    Exclude(CCPData[i].Context, cChange);
+  end;
+  CCP_ApplyProperties(CCP);
+end;
+
+procedure CCP_AfterInsert(Sender: TObject);
+var
+  CCP: TCCPRecord;
+  i: Integer;
+begin
+  i := CCP_GetIndex(Sender, cInsert);
+  CCP := CCPData[i];
+  Include(CCPData[i].Context, cInsert);
+  try
+    if CCP.AfterInsert <> nil then CCP.AfterInsert(Sender);
+  finally
+    Exclude(CCPData[i].Context, cInsert);
+  end;
+  CCP_ApplyProperties(CCP);
+end;
+
+procedure CCP_AfterDuplicate(Sender: TObject);
+var
+  CCP: TCCPRecord;
+  i: Integer;
+begin
+  i := CCP_GetIndex(Sender, cDuplicate);
+  CCP := CCPData[i];
+  Include(CCPData[i].Context, cDuplicate);
+  try
+    if CCP.AfterDuplicate <> nil then CCP.AfterDuplicate(Sender);
+  finally
+    Exclude(CCPData[i].Context, cDuplicate);
+  end;
+  CCP_ApplyProperties(CCP);
+end;
+
+procedure CCP_AfterEdit(Sender: TObject);
+var
+  CCP: TCCPRecord;
+  i: Integer;
+begin
+  i := CCP_GetIndex(Sender, cEdit);
+  CCP := CCPData[i];
+  Include(CCPData[i].Context, cEdit);
+  try
+    if CCP.AfterEdit <> nil then CCP.AfterEdit(Sender);
+  finally
+    Exclude(CCPData[i].Context, cEdit);
+  end;
+  CCP_ApplyProperties(CCP);
+end;
+
+// ============================================
+// ГЛАВНАЯ ФУНКЦИЯ ДЕЙСТВИЯ
+// ============================================
+function ComponentConditionalProps(aCmps: TVariantArray2d; StateEvents: Boolean): Boolean;
+var
+  i: Integer;
+begin
+  Result := True;
+
+  // Проверка на дубликаты компонентов (дополнительная, помимо UI)
+  // Если один компонент встречается больше одного раза — выдаём ошибку
+  for i := 0 to Length(aCmps) - 1 do
+  begin
+    // Проверка пропускается, т.к. UI уже делает эту проверку через GetValuesCount
+  end;
+
+  i := Length(CCPData);
+  if i = 0 then
+  begin
+    CCP_OldDBClose := MainWindow.OnDatabaseClose;
+    MainWindow.OnDatabaseClose := @CCP_DBClose;
+  end;
+
+  SetLength(CCPData, i + 1);
+
+  with CCPData[i] do
+  begin
+    Fm := Self;
+    Cmps := aCmps;
+
+    // Сохраняем старые обработчики
+    AfterPost := Self.OnAfterPost;
+    AfterScroll := Self.OnAfterScroll;
+    AfterCancel := Self.OnAfterCancel;
+    FieldChange := Self.OnFieldChange;
+    AfterDuplicate := Self.OnAfterDuplicate;
+
+    // Назначаем новые обработчики
+    Self.OnAfterPost := @CCP_AfterPost;
+    Self.OnAfterScroll := @CCP_AfterScroll;
+    Self.OnAfterCancel := @CCP_AfterCancel;
+    Self.OnFieldChange := @CCP_FieldChange;
+    Self.OnAfterDuplicate := @CCP_AfterDuplicate;
+
+    if StateEvents then
+    begin
+      AfterInsert := Self.OnAfterInsert;
+      AfterEdit := Self.OnAfterEdit;
+      Self.OnAfterInsert := @CCP_AfterInsert;
+      Self.OnAfterEdit := @CCP_AfterEdit;
+    end;
+  end;
+end;
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+procedure Init;
+begin
+  SetLength(CCPData, 0);
+  CCP_OldDBClose := nil;
+end;
+
+// ============================================
+// ДЕИНИЦИАЛИЗАЦИЯ
+// ============================================
+procedure Done;
+begin
+  SetLength(CCPData, 0);
+end;
+
+// ============================================
+// ТОЧКА ВХОДА
+// ============================================
+begin
+  Init;
+end.
+

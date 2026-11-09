@@ -1,12 +1,12 @@
 // ============================================
-// Расширение "FileKeeper" v0.1.1
+// Расширение "FileKeeper" v1.1.1
 // Основано на расширении "DX Хранилище файлов"
-// Version=1.1
+// Version=1.1.1
 // Поправил неработающий счетчик файлов
 
 {@module
 Author=Pozharskiy1991
-Version=0.1
+Version=1.1.1
 Description=<html>
 <b>FileKeeper — файловое хранилище DataExpress</b><br><br>
 
