@@ -1,0 +1,2114 @@
+{@module
+Author=DataExpress
+Version=1.4
+Description=Импорт данных в форму или таблицу из файла CSV или Excel.
+Добавлена настройка проверки на пустые значения в полях и отмена чтения данных.
+@}
+
+const
+  BUTTON_CAPTION_1 = 'Показать только ошибки';
+  BUTTON_CAPTION_2 = 'Показать все';
+  OK_IMAGE = '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';
+  ERR_IMAGE = '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';
+
+  // ===========================================================================
+  // НАСТРОЙКИ ОКНА
+  // ===========================================================================
+  WINDOW_WIDTH  = 1400;
+  WINDOW_HEIGHT = 600;
+
+  // ===========================================================================
+  // НАСТРОЙКИ КНОПОК УПРАВЛЕНИЯ
+  // ===========================================================================
+  BTN_TOGGLE_WIDTH = 250;
+  BTN_DELETE_WIDTH = 290;
+  BTN_EXPORT_WIDTH = 190;
+  BTN_AUTOFIT_WIDTH = 220;
+  BTN_HEIGHT       = 30;
+  BTN_SPACING      = 10;
+  BTN_TOP          = 12;
+
+  // ===========================================================================
+  // НАСТРОЙКИ КНОПКИ "ИМПОРТИРОВАТЬ"
+  // ===========================================================================
+  BTN_IMPORT_WIDTH  = 150;
+  BTN_IMPORT_HEIGHT = 30;
+  BTN_IMPORT_RIGHT  = 120;
+  BTN_IMPORT_BOTTOM = 5;
+
+  // ===========================================================================
+  // НАСТРОЙКИ СТОЛБЦОВ ГРИДА
+  // ===========================================================================
+  COL_WIDTH_NUM    = 40;
+  COL_WIDTH_FIELD  = 200;
+  COL_WIDTH_STATUS = 150;
+
+  // ===========================================================================
+  // НАСТРОЙКИ ЧТЕНИЯ EXCEL
+  // ===========================================================================
+  EXCEL_MAX_ROWS   = 100000;
+  EXCEL_EMPTY_STOP = 50;
+
+var
+  ErrCount, ErrRowCount, EmptyRowCount, NotFoundCount, NotFoundRowCount: Integer;
+  NullWarnCount, NullWarnRowCount: Integer;
+  CellErrors: array of array of Boolean;
+  NotFoundCells: array of array of Boolean;
+  NullWarnCells: array of array of Boolean;
+  NullWarnFields: array of Boolean;
+  GridData: array of array of String;
+  FormFields: TStringList;
+  CompareFields: TStringList;
+  CompareForms: TStringList;
+  Grid: TKGrid;
+  g_CharSet: String;
+  PopupMenu: TPopupMenu;
+  SelectedRowForMenu: Integer;
+  SelectedColForMenu: Integer;
+  BlockImportIfErrors: Boolean;
+  CheckWindowImg: TdxImage;
+  CheckWindowLbl: TLabel;
+  CheckWindowButtons: TButtonPanel;
+  CheckWindowBtn: TButton;
+  CheckWindowExportBtn: TButton;
+  CheckWindowDelErrBtn: TButton;
+  ImportBtn: TButton;
+  CheckCache: TStringList;
+  CancelImport: Boolean;
+  ExistingRecords: TStringList;
+
+// -----------------------------------------------------------------------------
+// FORWARD-ОБЪЯВЛЕНИЯ
+// -----------------------------------------------------------------------------
+procedure ShowAllRows; forward;
+procedure DeleteRowByIndex(R: Integer); forward;
+procedure RecalculateCounters; forward;
+procedure SyncGridToData; forward;
+procedure RecheckAllRows; forward;
+procedure ImportBtnClick(Sender: TObject); forward;
+function IsEmptyRow(R: Integer): Boolean; forward;
+procedure CancelImportClick(Sender: TObject); forward;
+
+// -----------------------------------------------------------------------------
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// -----------------------------------------------------------------------------
+
+procedure LoadImageFromString(Img: TdxImage; const Buf: String);
+var
+  SS: TStringStream;
+begin
+  SS := TStringStream.Create(DecodeBase64(Buf, False));
+  try
+    Img.LoadFromStream(SS);
+  finally
+    SS.Free;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// КЭШИРОВАНИЕ ПРОВЕРОК
+// -----------------------------------------------------------------------------
+
+procedure InitCheckCache;
+begin
+  if CheckCache <> nil then
+    CheckCache.Free;
+  CheckCache := TStringList.Create;
+  CheckCache.Sorted := True;
+  CheckCache.Duplicates := dupIgnore;
+end;
+
+function GetCachedCheck(const FormName, FieldName, Value: String; var Found: Boolean): Boolean;
+var
+  Key: String;
+  Idx: Integer;
+begin
+  Result := False;
+  Found := False;
+  if CheckCache = nil then Exit;
+
+  Key := Format('%s|%s|%s', [FormName, FieldName, Utf8LowerCase(Value)]);
+  Idx := CheckCache.IndexOf(Key);
+  if Idx >= 0 then
+  begin
+    Result := True;
+    Found := CheckCache.Objects[Idx] <> nil;
+  end;
+end;
+
+procedure SetCachedCheck(const FormName, FieldName, Value: String; Found: Boolean);
+var
+  Key: String;
+begin
+  if CheckCache = nil then Exit;
+  Key := Format('%s|%s|%s', [FormName, FieldName, Utf8LowerCase(Value)]);
+  if Found then
+    CheckCache.AddObject(Key, CheckCache)
+  else
+    CheckCache.AddObject(Key, nil);
+end;
+
+function CheckValueInForm(const FormName, FieldName, Value: String): Boolean;
+var
+  SQL: String;
+  Q: TdxSQLQuery;
+  CachedResult: Boolean;
+begin
+  Result := False;
+  if (FormName = '') or (FieldName = '') or (Value = '') then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  if GetCachedCheck(FormName, FieldName, Value, CachedResult) then
+  begin
+    Result := CachedResult;
+    Exit;
+  end;
+
+  try
+    SQL := Format(
+      'select count(*) as cnt from [%s] where lower([%s]) = lower(''%s'')',
+      [FormName, FieldName, StringReplace(Utf8LowerCase(Value), '''', '''''', [rfReplaceAll])]
+    );
+    Q := SQLSelect(SQL);
+    Q.Open;
+    Result := Q.AsI['cnt'] > 0;
+    Q.Free;
+  except
+    Result := True;
+  end;
+
+  SetCachedCheck(FormName, FieldName, Value, Result);
+end;
+
+// -----------------------------------------------------------------------------
+// ЗАГРУЗКА СУЩЕСТВУЮЩИХ ЗАПИСЕЙ ДЛЯ ПРОВЕРКИ ДУБЛИКАТОВ
+// -----------------------------------------------------------------------------
+
+procedure LoadExistingRecords(Fm: TdxForm; Fields: TVariantArray2d);
+var
+  i: Integer;
+  SQL, FlNm, Line: String;
+  Q: TdxSQLQuery;
+begin
+  if ExistingRecords <> nil then
+    ExistingRecords.Free;
+  ExistingRecords := TStringList.Create;
+  ExistingRecords.Sorted := True;
+
+  SQL := 'select ';
+  for i := 0 to High(Fields) do
+  begin
+    FlNm := Fields[i][0];
+    if i > 0 then SQL := SQL + ', ';
+    SQL := SQL + '[' + FlNm + ']';
+  end;
+  SQL := SQL + ' from [' + Fm.FormCaption + ']';
+
+  try
+    Q := SQLSelect(SQL);
+    Q.Open;
+    while not Q.EOF do
+    begin
+      Line := '';
+      for i := 0 to High(Fields) do
+      begin
+        if i > 0 then Line := Line + '|';
+        Line := Line + VarToStr(Q.Field[i]);
+      end;
+      ExistingRecords.Add(Utf8LowerCase(Line));
+      Q.MoveNext;
+    end;
+    Q.Free;
+  except
+  end;
+end;
+
+function IsDuplicate(R: Integer): Boolean;
+var
+  i: Integer;
+  Line: String;
+begin
+  Result := False;
+  if (ExistingRecords = nil) or (ExistingRecords.Count = 0) then Exit;
+  if IsEmptyRow(R) then Exit;
+
+  Line := '';
+  for i := 0 to FormFields.Count - 1 do
+  begin
+    if i > 0 then Line := Line + '|';
+    Line := Line + Utf8LowerCase(GridData[R][i]);
+  end;
+
+  Result := ExistingRecords.IndexOf(Line) >= 0;
+end;
+
+// -----------------------------------------------------------------------------
+// ОБНОВЛЕНИЕ СТАТУСА
+// -----------------------------------------------------------------------------
+
+procedure UpdateStatusDisplay;
+var
+  StatusMsg: String;
+  CanImport: Boolean;
+begin
+  if (CheckWindowImg = nil) or (CheckWindowLbl = nil) then Exit;
+
+  CanImport := True;
+  StatusMsg := '';
+
+  if ErrCount > 0 then
+  begin
+    LoadImageFromString(CheckWindowImg, ERR_IMAGE);
+    StatusMsg := Format('Обнаружено %d ошибок в %d строках. ', [ErrCount, ErrRowCount]);
+    CheckWindowLbl.Font.Color := clMaroon;
+    CanImport := False;
+    CheckWindowBtn.Visible := True;
+    CheckWindowDelErrBtn.Visible := True;
+  end;
+
+  if NotFoundCount > 0 then
+  begin
+    if StatusMsg = '' then LoadImageFromString(CheckWindowImg, ERR_IMAGE);
+    StatusMsg := StatusMsg + Format('⚠ Значений не найдено в БД: %d в %d строках. ',
+      [NotFoundCount, NotFoundRowCount]);
+    if ErrCount = 0 then CheckWindowLbl.Font.Color := RGBToColor(200, 100, 0);
+    CanImport := False;
+    CheckWindowBtn.Visible := True;
+    CheckWindowDelErrBtn.Visible := True;
+  end;
+
+  if NullWarnCount > 0 then
+  begin
+    if StatusMsg = '' then LoadImageFromString(CheckWindowImg, ERR_IMAGE);
+    StatusMsg := StatusMsg + Format('⚠ Незаполненных обязательных полей: %d в %d строках. ',
+      [NullWarnCount, NullWarnRowCount]);
+    if (ErrCount = 0) and (NotFoundCount = 0) then CheckWindowLbl.Font.Color := RGBToColor(200, 100, 0);
+    CheckWindowBtn.Visible := True;
+    CheckWindowDelErrBtn.Visible := True;
+  end;
+
+  if (ErrCount = 0) and (NotFoundCount = 0) and (NullWarnCount = 0) then
+  begin
+    LoadImageFromString(CheckWindowImg, OK_IMAGE);
+    StatusMsg := 'Ошибок не обнаружено. ';
+    CheckWindowLbl.Font.Color := clGreen;
+    CheckWindowBtn.Visible := False;
+    CheckWindowDelErrBtn.Visible := False;
+  end;
+
+  StatusMsg := StatusMsg + Format('Импортировано будет строк: %d из %d',
+    [Length(GridData) - ErrRowCount - EmptyRowcount, Length(GridData)]);
+  CheckWindowLbl.Caption := StatusMsg;
+
+  if ImportBtn <> nil then
+  begin
+    if BlockImportIfErrors and (not CanImport) then
+    begin
+      ImportBtn.Enabled := False;
+      CheckWindowLbl.Caption := CheckWindowLbl.Caption + ' Импорт заблокирован из-за ошибок.';
+    end
+    else
+      ImportBtn.Enabled := True;
+  end;
+end;
+
+function CheckValue(C: TObject; const Value: String): Boolean;
+var
+  E: Extended;
+  DT: TDateTime;
+begin
+  Result := False;
+  if Value = '' then
+    Result := True
+  else if (C is TdxCalcEdit) and not TryStrToFloat(Value, E) then
+  else if (C is TdxDateEdit) and not TryStrToDate(Value, DT) then
+  else if (C is TdxTimeEdit) and not TryStrToTime(Value, DT) then
+  else if (C is TdxCheckBox) and (Value <> '0') and (Value <> '1') then
+  else
+    Result := True;
+end;
+
+function IsEmptyRow(R: Integer): Boolean;
+var
+  i: Integer;
+begin
+  Result := True;
+  for i := 0 to FormFields.Count - 1 do
+    if GridData[R][i] <> '' then
+    begin
+      Result := False;
+      Exit;
+    end;
+end;
+
+function GetRowErrorStatus(R: Integer): String;
+var
+  HasFmtError, HasNotFound, HasNullWarn: Boolean;
+  i: Integer;
+begin
+  HasFmtError := False;
+  HasNotFound := False;
+  HasNullWarn := False;
+
+  for i := 0 to FormFields.Count - 1 do
+  begin
+    if CellErrors[R][i] then
+      HasFmtError := True;
+    if (i < Length(NotFoundCells[R])) and NotFoundCells[R][i] then
+      HasNotFound := True;
+    if (i < Length(NullWarnCells[R])) and NullWarnCells[R][i] then
+      HasNullWarn := True;
+  end;
+
+  if IsDuplicate(R) then
+    Result := 'Дубликат'
+  else if HasFmtError then
+    Result := 'Ошибка'
+  else if HasNotFound then
+    Result := 'Не найдено'
+  else if HasNullWarn then
+    Result := 'Пустое поле'
+  else if IsEmptyRow(R) then
+    Result := 'Пусто'
+  else
+    Result := '';
+end;
+
+function HasRowErrors(R: Integer): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+
+  if IsDuplicate(R) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  for i := 0 to FormFields.Count - 1 do
+    if CellErrors[R][i] then
+    begin
+      Result := True;
+      Exit;
+    end;
+
+  if (R < Length(NotFoundCells)) then
+    for i := 0 to Length(NotFoundCells[R]) - 1 do
+      if NotFoundCells[R][i] then
+      begin
+        Result := True;
+        Exit;
+      end;
+end;
+
+// -----------------------------------------------------------------------------
+// СИНХРОНИЗАЦИЯ ГРИД → GRIDDATA
+// -----------------------------------------------------------------------------
+
+procedure SyncGridToData;
+var
+  i, j: Integer;
+  n: Integer;
+  CellText: String;
+begin
+  for i := 1 to Grid.RowCount - 1 do
+  begin
+    CellText := Grid.Cells[0, i];
+    n := -1;
+    if CellText <> '' then
+      try
+        n := StrToInt(CellText) - 1;
+      except
+        Continue;
+      end;
+
+    if (n >= 0) and (n < Length(GridData)) then
+    begin
+      for j := 1 to FormFields.Count do
+        GridData[n][j - 1] := Grid.Cells[j, i];
+    end;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// УПРАВЛЕНИЕ СТРОКАМИ
+// -----------------------------------------------------------------------------
+
+procedure DeleteRowByIndex(R: Integer);
+var
+  i: Integer;
+begin
+  if (R < 0) or (R >= Length(GridData)) then
+    Exit;
+
+  for i := R to High(GridData) - 1 do
+  begin
+    GridData[i] := GridData[i + 1];
+    CellErrors[i] := CellErrors[i + 1];
+    NotFoundCells[i] := NotFoundCells[i + 1];
+    NullWarnCells[i] := NullWarnCells[i + 1];
+  end;
+
+  SetLength(GridData, Length(GridData) - 1);
+  SetLength(CellErrors, Length(CellErrors) - 1);
+  SetLength(NotFoundCells, Length(NotFoundCells) - 1);
+  SetLength(NullWarnCells, Length(NullWarnCells) - 1);
+  RecalculateCounters;
+end;
+
+procedure RecalculateCounters;
+var
+  i, j: Integer;
+  HasRowError, HasNotFound, HasNullWarn: Boolean;
+begin
+  ErrCount := 0;
+  ErrRowCount := 0;
+  NotFoundCount := 0;
+  NotFoundRowCount := 0;
+  NullWarnCount := 0;
+  NullWarnRowCount := 0;
+  EmptyRowCount := 0;
+
+  for i := 0 to High(GridData) do
+  begin
+    HasRowError := False;
+    HasNotFound := False;
+    HasNullWarn := False;
+
+    if IsEmptyRow(i) then
+    begin
+      Inc(EmptyRowCount);
+      Continue;
+    end;
+
+    for j := 0 to FormFields.Count - 1 do
+    begin
+      if CellErrors[i][j] then
+        HasRowError := True;
+      if (j < Length(NotFoundCells[i])) and NotFoundCells[i][j] then
+        HasNotFound := True;
+      if (j < Length(NullWarnCells[i])) and NullWarnCells[i][j] then
+        HasNullWarn := True;
+    end;
+
+    if IsDuplicate(i) then
+      HasRowError := True;
+
+    if HasRowError then
+    begin
+      Inc(ErrRowCount);
+      Inc(ErrCount);
+    end;
+    if HasNotFound then
+    begin
+      Inc(NotFoundRowCount);
+      Inc(NotFoundCount);
+    end;
+    if HasNullWarn then
+    begin
+      Inc(NullWarnRowCount);
+      Inc(NullWarnCount);
+    end;
+  end;
+end;
+
+procedure DeleteAllErrorRows;
+var
+  i: Integer;
+begin
+  i := 0;
+  while i < Length(GridData) do
+  begin
+    if HasRowErrors(i) or IsEmptyRow(i) then
+      DeleteRowByIndex(i)
+    else
+      Inc(i);
+  end;
+  ShowAllRows;
+end;
+
+// -----------------------------------------------------------------------------
+// КОНТЕКСТНОЕ МЕНЮ
+// -----------------------------------------------------------------------------
+
+procedure ListWindowSelectClick(Sender: TObject);
+var
+  LW: TListWindow;
+begin
+  LW := TListWindow(TControl(Sender).GetTopParent);
+  if LW.FormView.Form.RecId > 0 then
+    LW.ModalResult := mrOk;
+end;
+
+procedure FindAndReplaceMenuClick(Sender: TObject);
+var
+  FormName, FieldName: String;
+  Col: Integer;
+  LW: TListWindow;
+  Fm: TdxForm;
+begin
+  if SelectedRowForMenu < 1 then Exit;
+  Col := SelectedColForMenu;
+
+  if (Col < 1) or (Col > FormFields.Count) then
+  begin
+    MsgBox('Информация', 'Для данного столбца не настроено сравнение с формой.');
+    Exit;
+  end;
+
+  if (Col - 1 < CompareForms.Count) and (CompareForms[Col - 1] <> '') then
+  begin
+    FormName := CompareForms[Col - 1];
+    FieldName := CompareFields[Col - 1];
+  end
+  else
+  begin
+    MsgBox('Информация', 'Для столбца "' + FormFields[Col - 1] + '" не настроено сравнение с формой.');
+    Exit;
+  end;
+
+  LW := TListWindow.Create(FormName, vtGridOnly);
+  try
+    LW.FormView.Form.Open;
+    LW.Caption := 'Выберите значение для "' + FormFields[Col - 1] + '"';
+    LW.Buttons.ShowButtons := [pbOk, pbCancel];
+    LW.FormView.Grid.OnDblClick := @ListWindowSelectClick;
+
+    if LW.ShowModal = mrOk then
+    begin
+      Fm := LW.FormView.Form;
+      if Fm.RecId > 0 then
+      begin
+        Grid.Cells[Col, SelectedRowForMenu] := VarToStr(Fm[FieldName]);
+        SyncGridToData;
+      end;
+    end;
+  finally
+    LW.Free;
+  end;
+end;
+
+procedure DeleteRowMenuClick(Sender: TObject);
+var
+  DataIndex: Integer;
+  CellText: String;
+begin
+  if SelectedRowForMenu < 1 then Exit;
+  CellText := Grid.Cells[0, SelectedRowForMenu];
+  DataIndex := -1;
+  if CellText <> '' then
+    try
+      DataIndex := StrToInt(CellText) - 1;
+    except
+      Exit;
+    end
+  else
+    Exit;
+
+  if (DataIndex >= 0) and (DataIndex < Length(GridData)) then
+  begin
+    DeleteRowByIndex(DataIndex);
+    ShowAllRows;
+  end;
+end;
+
+procedure RecheckAllRows;
+var
+  i, j: Integer;
+  Cmp: TObject;
+begin
+  SyncGridToData;
+  InitCheckCache;
+
+  ErrCount := 0; ErrRowCount := 0;
+  NotFoundCount := 0; NotFoundRowCount := 0;
+  NullWarnCount := 0; NullWarnRowCount := 0;
+
+  for i := 0 to High(GridData) do
+  begin
+    for j := 0 to FormFields.Count - 1 do
+    begin
+      Cmp := FormFields.Objects[j];
+      CellErrors[i][j] := not CheckValue(Cmp, GridData[i][j]);
+
+      if (j < CompareForms.Count) and (CompareForms[j] <> '') and (GridData[i][j] <> '') then
+        NotFoundCells[i][j] := not CheckValueInForm(CompareForms[j], CompareFields[j], GridData[i][j])
+      else
+        NotFoundCells[i][j] := False;
+
+      if (j < Length(NullWarnFields)) and NullWarnFields[j] and (GridData[i][j] = '') then
+        NullWarnCells[i][j] := True
+      else
+        NullWarnCells[i][j] := False;
+    end;
+  end;
+
+  RecalculateCounters;
+  ShowAllRows;
+  UpdateStatusDisplay;
+end;
+
+procedure RecheckMenuClick(Sender: TObject);
+begin
+  RecheckAllRows;
+end;
+
+// -----------------------------------------------------------------------------
+// АВТОПОДБОР ШИРИНЫ СТОЛБЦОВ
+// -----------------------------------------------------------------------------
+
+procedure AutoFitColumns;
+var
+  i, j, MaxWidth, TextWidth: Integer;
+  CellText: String;
+  Canvas: TCanvas;
+begin
+  if Grid = nil then Exit;
+  Canvas := Grid.Canvas;
+
+  for i := 1 to FormFields.Count do
+  begin
+    MaxWidth := Canvas.TextWidth(Grid.Cells[i, 0]) + 20;
+    for j := 1 to Grid.RowCount - 1 do
+    begin
+      CellText := Grid.Cells[i, j];
+      if CellText <> '' then
+      begin
+        TextWidth := Canvas.TextWidth(CellText) + 20;
+        if TextWidth > MaxWidth then MaxWidth := TextWidth;
+      end;
+    end;
+    if MaxWidth > 500 then MaxWidth := 500;
+    if MaxWidth < 80 then MaxWidth := 80;
+    Grid.ColWidths[i] := MaxWidth;
+  end;
+
+  MaxWidth := Canvas.TextWidth('Ошибка импорта') + 20;
+  for j := 1 to Grid.RowCount - 1 do
+  begin
+    CellText := Grid.Cells[FormFields.Count + 1, j];
+    if CellText <> '' then
+    begin
+      TextWidth := Canvas.TextWidth(CellText) + 20;
+      if TextWidth > MaxWidth then MaxWidth := TextWidth;
+    end;
+  end;
+  if MaxWidth > 300 then MaxWidth := 300;
+  Grid.ColWidths[FormFields.Count + 1] := MaxWidth;
+end;
+
+procedure AutoFitBtnClick(Sender: TObject);
+begin
+  AutoFitColumns;
+end;
+
+// -----------------------------------------------------------------------------
+// ОБРАБОТЧИК КНОПКИ ИМПОРТИРОВАТЬ
+// -----------------------------------------------------------------------------
+
+procedure ImportBtnClick(Sender: TObject);
+begin
+  RecheckAllRows;
+
+  if BlockImportIfErrors and ((ErrCount > 0) or (NotFoundCount > 0)) then
+  begin
+    MsgBox('Внимание', 'Импорт невозможен. Обнаружены ошибки в данных.');
+    Exit;
+  end;
+
+  if NullWarnCount > 0 then
+  begin
+    if MessageDlg('Внимание',
+      Format('Обнаружено %d незаполненных обязательных полей в %d строках.' + #13#10 +
+        'Всё равно продолжить импорт?', [NullWarnCount, NullWarnRowCount]),
+      mtWarning, [mbYes, mbNo]) = mrNo then
+      Exit;
+  end;
+
+  if ImportBtn <> nil then
+    TWindow(ImportBtn.GetTopParent).ModalResult := mrOk;
+end;
+
+procedure GridMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  ACol, ARow: Integer;
+begin
+  if Button = mbRight then
+  begin
+    Grid.MouseToCell(X, Y, ACol, ARow);
+    if ARow >= Grid.FixedRows then
+    begin
+      SelectedRowForMenu := ARow;
+      SelectedColForMenu := ACol;
+      if PopupMenu <> nil then PopupMenu.Popup;
+    end;
+  end;
+end;
+
+procedure CreatePopupMenu;
+var
+  MenuItem: TMenuItem;
+begin
+  PopupMenu := TPopupMenu.Create(nil);
+
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := 'Найти и заменить';
+  MenuItem.OnClick := @FindAndReplaceMenuClick;
+  PopupMenu.Items.Add(MenuItem);
+
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := '-';
+  PopupMenu.Items.Add(MenuItem);
+
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := 'Удалить строку';
+  MenuItem.OnClick := @DeleteRowMenuClick;
+  PopupMenu.Items.Add(MenuItem);
+
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := '-';
+  PopupMenu.Items.Add(MenuItem);
+
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := 'Перепроверить';
+  MenuItem.OnClick := @RecheckMenuClick;
+  PopupMenu.Items.Add(MenuItem);
+end;
+
+// -----------------------------------------------------------------------------
+// КНОПКИ УПРАВЛЕНИЯ
+// -----------------------------------------------------------------------------
+
+procedure DeleteErrorsBtnClick(Sender: TObject);
+begin
+  if Length(GridData) = 0 then
+  begin
+    MsgBox('Информация', 'Нет данных для удаления.');
+    Exit;
+  end;
+
+  if MessageDlg('Подтверждение', 'Удалить все записи с ошибками?',
+    mtConfirmation, [mbYes, mbNo]) = mrYes then
+  begin
+    DeleteAllErrorRows;
+    UpdateStatusDisplay;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// ОБРАБОТЧИК КНОПКИ ОТМЕНЫ (общий для чтения и импорта)
+// -----------------------------------------------------------------------------
+procedure CancelImportClick(Sender: TObject);
+begin
+  CancelImport := True;
+end;
+
+// -----------------------------------------------------------------------------
+// ОКНО ПРОГРЕССА ЧТЕНИЯ ДАННЫХ (с кнопкой Отмена)
+// -----------------------------------------------------------------------------
+
+function CreateProgress: TWindow;
+var
+  CancelBtn: TdxButton;
+  InfoLbl: TLabel;
+begin
+  Result := TWindow.Create;
+  Result.BorderStyle := bsSingle;      // Включаем рамку
+  Result.Width := 380;
+  Result.Height := 160;
+  Result.Position := poOwnerFormCenter;
+  Result.Caption := 'Чтение данных';
+  Result.FormStyle := fsStayOnTop;
+
+  with TLabel.Create(Result) do
+  begin
+    Name := 'Msg';
+    Parent := Result;
+    Font.Size := 11;
+    Font.Name := 'Verdana';
+    Font.Style := [fsBold];
+    AutoSize := False;
+    Left := 10;
+    Top := 15;
+    Width := Result.ClientWidth - 20;
+    Height := 25;
+    Alignment := taCenter;
+    Layout := tlCenter;
+    Caption := 'Идёт чтение данных...';
+  end;
+
+  InfoLbl := TLabel.Create(Result);
+  InfoLbl.Parent := Result;
+  InfoLbl.Font.Size := 9;
+  InfoLbl.Font.Name := 'Verdana';
+  InfoLbl.AutoSize := False;
+  InfoLbl.Left := 10;
+  InfoLbl.Top := 50;
+  InfoLbl.Width := Result.ClientWidth - 20;
+  InfoLbl.Height := 20;
+  InfoLbl.Alignment := taCenter;
+  InfoLbl.Layout := tlCenter;
+  InfoLbl.Caption := 'Нажмите «Отмена» чтобы прервать чтение';
+
+  CancelBtn := TdxButton.Create(Result);
+  CancelBtn.Parent := Result;
+  CancelBtn.Caption := 'Отмена';
+  CancelBtn.Width := 120;
+  CancelBtn.Height := 30;
+  CancelBtn.Left := (Result.ClientWidth - 120) div 2;
+  CancelBtn.Top := 80;
+  CancelBtn.OnClick := @CancelImportClick;
+end;
+
+procedure ShowProgress(W: TWindow; const Msg: String);
+begin
+  with TLabel(W.FindComponent('Msg')) do
+    Caption := Msg;
+  if not W.Visible then W.Show;
+end;
+
+// -----------------------------------------------------------------------------
+// ЧТЕНИЕ CSV
+// -----------------------------------------------------------------------------
+
+function ReadValue(St: TStream; var EndLine: Boolean): String;
+var
+  IsQuote: Boolean;
+  S: String;
+begin
+  Result := '';
+  SetLength(S, 1);
+  EndLine := False;
+
+  if St.Position >= St.Size then
+  begin
+    EndLine := True;
+    Exit;
+  end;
+
+  if St.Read(S, 1) = 1 then
+  begin
+    if S = ';' then
+    begin
+      Result := '';
+      Exit;
+    end;
+
+    if S[1] in [#10, #13] then
+    begin
+      EndLine := True;
+      if (St.Read(S, 1) = 1) and (S <> #10) then
+        St.Position := St.Position - 1;
+      Result := '';
+      Exit;
+    end;
+
+    if S = '"' then
+      IsQuote := True
+    else
+      Result := S;
+  end
+  else
+  begin
+    EndLine := True;
+    Exit;
+  end;
+
+  while (St.Read(S, 1) = 1) do
+  begin
+    if not IsQuote then
+    begin
+      if S = ';' then
+        Break
+      else if S[1] in [#10, #13] then
+      begin
+        EndLine := True;
+        if (St.Read(S, 1) = 1) and (S <> #10) then
+          St.Position := St.Position - 1;
+        Break;
+      end
+      else
+        Result := Result + S[1];
+    end
+    else
+    begin
+      if S = '"' then
+      begin
+        if St.Read(S, 1) = 1 then
+        begin
+          if S = '"' then
+            Result := Result + S[1]
+          else
+          begin
+            IsQuote := False;
+            St.Position := St.Position - 1;
+          end;
+        end
+        else
+          IsQuote := False;
+      end
+      else
+        Result := Result + S[1];
+    end;
+  end;
+end;
+
+procedure SkipBOM(St: TStream);
+var
+  S: String;
+begin
+  SetLength(S, 3);
+  St.Read(S, 3);
+  if S <> #$EF#$BB#$BF then
+    St.Seek(0, soFromBeginning);
+end;
+
+procedure ReadData(const FileName: String; ANSI: Boolean; SkipRows: Integer);
+var
+  St: TMemoryStream;
+  C, R, RowCount: Integer;
+  HasRowError, HasNotFound, HasNullWarn, EndLine, EmptyRow: Boolean;
+  S: String;
+  Cmp: TObject;
+begin
+  ErrCount := 0; ErrRowCount := 0; EmptyRowCount := 0;
+  NotFoundCount := 0; NotFoundRowCount := 0;
+  NullWarnCount := 0; NullWarnRowCount := 0;
+  HasRowError := False; HasNotFound := False; HasNullWarn := False; EmptyRow := True;
+  C := 0; R := 0; RowCount := 1000;
+
+  SetLength(GridData, RowCount);
+  SetLength(CellErrors, RowCount);
+  SetLength(NotFoundCells, RowCount);
+  SetLength(NullWarnCells, RowCount);
+  SetLength(GridData[R], FormFields.Count);
+  SetLength(CellErrors[R], FormFields.Count);
+  SetLength(NotFoundCells[R], FormFields.Count);
+  SetLength(NullWarnCells[R], FormFields.Count);
+
+  St := TMemoryStream.Create;
+  St.LoadFromFile(FileName);
+
+  try
+    SkipBOM(St);
+        while St.Position < St.Size do
+    begin
+      // Обработка сообщений для отзывчивости кнопки Отмена
+      if (St.Position mod 5000 = 0) then
+        Application.ProcessMessages;
+
+      S := ReadValue(St, EndLine);
+
+      // Проверка отмены
+      if CancelImport then
+      begin
+        SetLength(GridData, R);
+        SetLength(CellErrors, R);
+        SetLength(NotFoundCells, R);
+        SetLength(NullWarnCells, R);
+        Exit;
+      end;
+      // ... остальной код
+
+      if ANSI then S := WinCPToUtf8(S);
+      if S <> '' then EmptyRow := False;
+
+      if R < SkipRows then
+      else if C < FormFields.Count then
+      begin
+        Cmp := FormFields.Objects[C];
+        if Cmp is TdxCalcEdit then
+          S := StringReplace(S, ' ', '', [rfReplaceAll]);
+
+        CellErrors[R][C] := not CheckValue(Cmp, S);
+        if CellErrors[R][C] then
+        begin
+          Inc(ErrCount);
+          HasRowError := True;
+        end;
+
+        if C < CompareForms.Count then
+        begin
+          NotFoundCells[R][C] := not CheckValueInForm(CompareForms[C], CompareFields[C], S);
+          if NotFoundCells[R][C] and (S <> '') then
+          begin
+            Inc(NotFoundCount);
+            HasNotFound := True;
+          end;
+        end
+        else
+          NotFoundCells[R][C] := False;
+
+        if (C < Length(NullWarnFields)) and NullWarnFields[C] and (S = '') then
+        begin
+          NullWarnCells[R][C] := True;
+          Inc(NullWarnCount);
+          HasNullWarn := True;
+        end
+        else
+          NullWarnCells[R][C] := False;
+
+        GridData[R][C] := S;
+        Inc(C);
+      end;
+
+      if EndLine or (St.Position = St.Size) then
+      begin
+        while (R >= SkipRows) and (C < FormFields.Count) do
+        begin
+          CellErrors[R][C] := False;
+          NotFoundCells[R][C] := False;
+          NullWarnCells[R][C] := False;
+          GridData[R][C] := '';
+          Inc(C);
+        end;
+
+        if SkipRows > 0 then
+          Dec(SkipRows)
+        else
+        begin
+          Inc(R);
+          if R = RowCount then
+          begin
+            RowCount := RowCount + 1000;
+            SetLength(GridData, RowCount);
+            SetLength(CellErrors, RowCount);
+            SetLength(NotFoundCells, RowCount);
+            SetLength(NullWarnCells, RowCount);
+          end;
+          SetLength(GridData[R], FormFields.Count);
+          SetLength(CellErrors[R], FormFields.Count);
+          SetLength(NotFoundCells[R], FormFields.Count);
+          SetLength(NullWarnCells[R], FormFields.Count);
+          if HasRowError then Inc(ErrRowCount);
+          if HasNotFound then Inc(NotFoundRowCount);
+          if HasNullWarn then Inc(NullWarnRowCount);
+          if EmptyRow then Inc(EmptyRowCount);
+          HasRowError := False; HasNotFound := False; HasNullWarn := False; EmptyRow := True;
+        end;
+        C := 0;
+      end;
+    end;
+
+    SetLength(GridData, R);
+    SetLength(CellErrors, R);
+    SetLength(NotFoundCells, R);
+    SetLength(NullWarnCells, R);
+  finally
+    St.Free;
+  end;
+end;
+
+procedure ReadDataFromExcel(const FileName: String; ANSI: Boolean; SkipRows: Integer);
+var
+  C, R, RowCount, MaxRow: Integer;
+  HasRowError, HasNotFound, HasNullWarn, EmptyRow, HasAnyData: Boolean;
+  S: String;
+  Cmp: TObject;
+  Xls: Variant;
+  UsedRangeRows: Integer;
+  EmptyRowCounter: Integer;
+begin
+  ErrCount := 0; ErrRowCount := 0; EmptyRowCount := 0;
+  NotFoundCount := 0; NotFoundRowCount := 0;
+  NullWarnCount := 0; NullWarnRowCount := 0;
+
+  try
+    Xls := CreateOleObject('excel.application');
+    Xls.DisplayAlerts := False;
+    Xls.WorkBooks.Open(FileName);
+
+    UsedRangeRows := Xls.ActiveSheet.UsedRange.Rows.Count;
+    MaxRow := Xls.ActiveSheet.UsedRange.Row + UsedRangeRows - 1;
+
+    if MaxRow > EXCEL_MAX_ROWS then MaxRow := EXCEL_MAX_ROWS;
+
+    RowCount := 0;
+    EmptyRowCounter := 0;
+
+    for R := SkipRows to MaxRow - 1 do
+    begin
+      // Обработка сообщений для отзывчивости кнопки Отмена
+      if (R mod 100 = 0) then
+        Application.ProcessMessages;
+        if CancelImport then
+      begin
+        SetLength(GridData, RowCount);
+        SetLength(CellErrors, RowCount);
+        SetLength(NotFoundCells, RowCount);
+        SetLength(NullWarnCells, RowCount);
+        try Xls.ActiveWorkBook.Close; except end;
+        try Xls.Application.Quit; except end;
+        Exit;
+      end;
+
+      HasAnyData := False;
+      for C := 0 to FormFields.Count - 1 do
+      begin
+        S := Xls.Cells(R + 1, C + 1).Text;
+        if S <> '' then
+        begin
+          HasAnyData := True;
+          Break;
+        end;
+      end;
+
+      if HasAnyData then
+      begin
+        RowCount := R - SkipRows + 1;
+        EmptyRowCounter := 0;
+      end
+      else
+      begin
+        Inc(EmptyRowCounter);
+        if EmptyRowCounter >= EXCEL_EMPTY_STOP then Break;
+      end;
+    end;
+
+    if RowCount = 0 then
+    begin
+      SetLength(GridData, 0);
+      SetLength(CellErrors, 0);
+      SetLength(NotFoundCells, 0);
+      SetLength(NullWarnCells, 0);
+      try Xls.ActiveWorkBook.Close; except end;
+      try Xls.Application.Quit; except end;
+      Exit;
+    end;
+
+    SetLength(GridData, RowCount);
+    SetLength(CellErrors, RowCount);
+    SetLength(NotFoundCells, RowCount);
+    SetLength(NullWarnCells, RowCount);
+
+        for R := 0 to RowCount - 1 do
+    begin
+      // Обработка сообщений
+      if (R mod 100 = 0) then
+        Application.ProcessMessages;
+      // Проверка отмены
+      if CancelImport then
+      begin
+        SetLength(GridData, R);
+        SetLength(CellErrors, R);
+        SetLength(NotFoundCells, R);
+        SetLength(NullWarnCells, R);
+        try Xls.ActiveWorkBook.Close; except end;
+        try Xls.Application.Quit; except end;
+        Exit;
+      end;
+
+      SetLength(GridData[R], FormFields.Count);
+      SetLength(CellErrors[R], FormFields.Count);
+      SetLength(NotFoundCells[R], FormFields.Count);
+      SetLength(NullWarnCells[R], FormFields.Count);
+      EmptyRow := True; HasRowError := False; HasNotFound := False; HasNullWarn := False;
+
+      for C := 0 to FormFields.Count - 1 do
+      begin
+        S := Xls.Cells(R + SkipRows + 1, C + 1).Text;
+        if S <> '' then EmptyRow := False;
+        Cmp := FormFields.Objects[C];
+        if Cmp is TdxCalcEdit then
+          S := StringReplace(S, ' ', '', [rfReplaceAll]);
+
+        CellErrors[R][C] := not CheckValue(Cmp, S);
+        if CellErrors[R][C] then
+        begin
+          Inc(ErrCount);
+          HasRowError := True;
+        end;
+
+        if C < CompareForms.Count then
+        begin
+          NotFoundCells[R][C] := not CheckValueInForm(CompareForms[C], CompareFields[C], S);
+          if NotFoundCells[R][C] and (S <> '') then
+          begin
+            Inc(NotFoundCount);
+            HasNotFound := True;
+          end;
+        end
+        else
+          NotFoundCells[R][C] := False;
+
+        if (C < Length(NullWarnFields)) and NullWarnFields[C] and (S = '') then
+        begin
+          NullWarnCells[R][C] := True;
+          Inc(NullWarnCount);
+          HasNullWarn := True;
+        end
+        else
+          NullWarnCells[R][C] := False;
+
+        GridData[R][C] := S;
+      end;
+
+      if HasRowError then Inc(ErrRowCount);
+      if HasNotFound then Inc(NotFoundRowCount);
+      if HasNullWarn then Inc(NullWarnRowCount);
+      if EmptyRow then Inc(EmptyRowCount);
+    end;
+  finally
+    try Xls.ActiveWorkBook.Close; except end;
+    try Xls.Application.Quit; except end;
+  end;
+end;
+
+procedure ReadDataFromFile(const FileName: String; ANSI: Boolean; SkipRows: Integer);
+begin
+  if AnsiLowerCase(ExtractFileExt(FileName)) in ['.xlsx', '.xlsm', '.xls'] then
+    ReadDataFromExcel(FileName, ANSI, SkipRows)
+  else
+    ReadData(FileName, ANSI, SkipRows);
+end;
+
+// -----------------------------------------------------------------------------
+// ОТРИСОВКА ГРИДА
+// -----------------------------------------------------------------------------
+
+procedure GridDrawCell(Sender: TObject; ACol, ARow: Integer; R: TRect; State: TKGridDrawState);
+var
+  C: TCanvas;
+  Bk, Txt: TColor;
+  TS: TTextStyleRec;
+  Cmp: TObject;
+  n: Integer;
+  CellText, Status: String;
+begin
+  C := Grid.Canvas;
+
+  if (kgdMouseOver in State) and (kgdFixed in State) then
+  begin
+    Bk := Grid.Colors.FixedCellIndication;
+    Txt := Grid.Colors.FixedCellText;
+  end
+  else if kgdFixed in State then
+  begin
+    Bk := Grid.Colors.FixedCellBkGnd;
+    Txt := Grid.Colors.FixedCellText;
+  end
+  else if kgdFocused in State then
+  begin
+    Bk := Grid.Colors.FocusedCellBkGnd;
+    Txt := Grid.Colors.FocusedCellText;
+  end
+  else
+  begin
+    CellText := Grid.Cells[0, ARow];
+    n := -1;
+    if CellText <> '' then
+      try
+        n := StrToInt(CellText) - 1;
+      except
+        n := -1;
+      end;
+
+    if (n >= 0) and (n < Length(CellErrors)) then
+    begin
+      if (ACol > 0) and (ACol <= FormFields.Count) then
+      begin
+        if (ACol - 1 < Length(CellErrors[n])) then
+        begin
+          if CellErrors[n][ACol - 1] then
+            Bk := RGBToColor(255, 100, 100)
+          else if (n < Length(NotFoundCells)) and
+                  (ACol - 1 < Length(NotFoundCells[n])) and
+                  NotFoundCells[n][ACol - 1] then
+            Bk := RGBToColor(255, 200, 100)
+          else if (n < Length(NullWarnCells)) and
+                  (ACol - 1 < Length(NullWarnCells[n])) and
+                  NullWarnCells[n][ACol - 1] then
+            Bk := RGBToColor(255, 255, 150)
+          else
+            Bk := Grid.Colors.CellBkGnd;
+        end
+        else
+          Bk := Grid.Colors.CellBkGnd;
+      end
+      else if ACol = FormFields.Count + 1 then
+      begin
+        Status := Grid.Cells[ACol, ARow];
+        if Status = 'Ошибка' then
+          Bk := RGBToColor(255, 150, 150)
+        else if Status = 'Не найдено' then
+          Bk := RGBToColor(255, 220, 150)
+        else if Status = 'Пустое поле' then
+          Bk := RGBToColor(255, 255, 150)
+        else if Status = 'Дубликат' then
+          Bk := RGBToColor(200, 150, 255)
+        else if Status = 'Пусто' then
+          Bk := RGBToColor(220, 220, 220)
+        else
+          Bk := Grid.Colors.CellBkGnd;
+      end
+      else
+        Bk := Grid.Colors.CellBkGnd;
+    end
+    else
+      Bk := Grid.Colors.CellBkGnd;
+
+    Txt := Grid.Colors.CellText;
+  end;
+
+  C.Brush.Color := Bk;
+  C.Font.Color := Txt;
+  C.FillRect(R);
+
+  TS.Alignment := 0;
+  TS.Layout := 1;
+  TS.SingleLine := True;
+  TS.Clipping := True;
+
+  if (ACol > 0) and (ARow > 0) and (ACol - 1 < FormFields.Count) then
+  begin
+    Cmp := FormFields.Objects[ACol - 1];
+    if (Cmp is TdxCalcEdit) or (Cmp is TdxCheckBox) then
+      TS.Alignment := 2;
+  end;
+
+  C.TextRect(R, R.Left + 2, R.Top + 3, Grid.Cells[ACol, ARow], TS);
+end;
+
+// -----------------------------------------------------------------------------
+// ОТОБРАЖЕНИЕ ДАННЫХ
+// -----------------------------------------------------------------------------
+
+procedure ShowErrorsOnly;
+var
+  i, j, r, Total: Integer;
+begin
+  Total := 0;
+  for i := 0 to High(GridData) do
+    if HasRowErrors(i) or IsEmptyRow(i) then
+      Inc(Total);
+
+  Grid.RowCount := Total + 1;
+  Grid.Options := Grid.Options + [goColSizing];
+  r := 1;
+
+  for i := 0 to High(GridData) do
+  begin
+    if not HasRowErrors(i) and not IsEmptyRow(i) then Continue;
+
+    Grid.Cells[0, r] := IntToStr(i + 1);
+    for j := 1 to FormFields.Count do
+      Grid.Cells[j, r] := GridData[i][j - 1];
+    Grid.Cells[FormFields.Count + 1, r] := GetRowErrorStatus(i);
+    Inc(r);
+  end;
+end;
+
+procedure ShowAllRows;
+var
+  i, j: Integer;
+begin
+  Grid.RowCount := Length(GridData) + 1;
+  Grid.Options := Grid.Options + [goColSizing];
+
+  for i := 1 to Grid.RowCount - 1 do
+  begin
+    Grid.Cells[0, i] := IntToStr(i);
+    for j := 1 to FormFields.Count do
+      Grid.Cells[j, i] := GridData[i - 1][j - 1];
+    Grid.Cells[FormFields.Count + 1, i] := GetRowErrorStatus(i - 1);
+  end;
+end;
+
+procedure BtnClick(Sender: TObject);
+var
+  Bn: TButton;
+begin
+  Bn := TButton(Sender);
+  if Bn.Caption = BUTTON_CAPTION_1 then
+  begin
+    Bn.Caption := BUTTON_CAPTION_2;
+    ShowErrorsOnly;
+  end
+  else
+  begin
+    Bn.Caption := BUTTON_CAPTION_1;
+    ShowAllRows;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// ЭКСПОРТ ДАННЫХ
+// -----------------------------------------------------------------------------
+
+procedure ExportBtnClick(Sender: TObject);
+var
+  SaveDlg: TSaveDialog;
+  SL: TStringList;
+  i, j: Integer;
+  Line, ExportData: String;
+begin
+  SaveDlg := TSaveDialog.Create(nil);
+  try
+    SaveDlg.Title := 'Экспорт таблицы';
+    SaveDlg.Filter := 'CSV файлы|*.csv|Все файлы|*.*';
+    SaveDlg.DefaultExt := 'csv';
+    SaveDlg.FileName := 'export_table.csv';
+    if not SaveDlg.Execute then Exit;
+
+    SL := TStringList.Create;
+    try
+      Line := '№';
+      for j := 0 to FormFields.Count - 1 do
+        Line := Line + ';' + FormFields[j];
+      Line := Line + ';Статус';
+      SL.Add(Line);
+
+      for i := 1 to Grid.RowCount - 1 do
+      begin
+        Line := Grid.Cells[0, i];
+        for j := 1 to FormFields.Count do
+          Line := Line + ';' + Grid.Cells[j, i];
+        Line := Line + ';' + Grid.Cells[FormFields.Count + 1, i];
+        SL.Add(Line);
+      end;
+
+      if g_CharSet = 'ANSI' then
+      begin
+        ExportData := Utf8ToWinCP(SL.Text);
+        SL.Text := '';
+        SL.Add(ExportData);
+      end;
+
+      SL.SaveToFile(SaveDlg.FileName);
+      MsgBox('Экспорт', 'Таблица сохранена в файл:' + #13#10 + SaveDlg.FileName);
+    finally
+      SL.Free;
+    end;
+  finally
+    SaveDlg.Free;
+  end;
+end;
+
+procedure HelpButtonClick(Sender: TObject);
+begin
+  MsgBox('Помощь',
+    'Проверьте, чтобы все данные соответствовали полям формы. ' +
+    'Ячейки с ошибками выделены красным цветом. ' +
+    'Оранжевым цветом выделены значения, не найденные в связанных формах. ' +
+    'Жёлтым цветом выделены пустые значения в обязательных полях. ' +
+    'Фиолетовым цветом выделены дубликаты существующих записей. ' +
+    'Столбец "Ошибка импорта" показывает статус строки. ' +
+    'Правый клик — контекстное меню. ' +
+    'Кнопка "Экспорт таблицы" сохраняет отображённые в таблице строки в CSV. ' +
+    'Кнопка "Ширина столбцов авто" подгоняет ширину столбцов под содержимое.');
+end;
+
+// -----------------------------------------------------------------------------
+// ОКНО ПРОВЕРКИ ДАННЫХ
+// -----------------------------------------------------------------------------
+
+function ShowCheckDataWindow: Integer;
+var
+  i: Integer;
+  W: TWindow;
+  Lbl: TLabel;
+  Pan: TPanel;
+  Buttons: TButtonPanel;
+  Btn, ExportBtn, DelErrBtn, AutoFitBtn: TButton;
+  Img: TdxImage;
+  TotalButtonsWidth: Integer;
+  StartX: Integer;
+begin
+  W := TWindow.Create;
+  W.Width := WINDOW_WIDTH;
+  W.Height := WINDOW_HEIGHT;
+  W.Caption := 'Данные для импорта';
+  W.Position := poOwnerFormCenter;
+  W.Font.Size := 10;
+  W.Font.Name := 'Verdana';
+  W.BorderIcons := W.BorderIcons - [biMinimize];
+
+  Pan := TPanel.Create(W);
+  Pan.Parent := W;
+  Pan.BevelOuter := bvNone;
+  Pan.Caption := '';
+  Pan.Height := 48;
+  Pan.Align := alTop;
+
+  Img := TdxImage.Create(W);
+  Img.Parent := W;
+  Img.SetBounds(8, 8, 32, 32);
+
+  Lbl := TLabel.Create(W);
+  Lbl.Parent := Pan;
+  Lbl.Font.Style := [];
+  Lbl.Font.Size := 8;
+  Lbl.Left := 48;
+  Lbl.Top := 8;
+  Lbl.Width := Pan.Width - 460;
+  Lbl.WordWrap := True;
+  Lbl.AutoSize := False;
+
+  CheckWindowImg := Img;
+  CheckWindowLbl := Lbl;
+
+  TotalButtonsWidth := BTN_TOGGLE_WIDTH + BTN_SPACING + BTN_AUTOFIT_WIDTH + BTN_SPACING + BTN_EXPORT_WIDTH + BTN_SPACING + BTN_DELETE_WIDTH;
+  StartX := W.Width - TotalButtonsWidth - 10;
+
+  DelErrBtn := TButton.Create(W); DelErrBtn.Parent := W;
+  DelErrBtn.SetBounds(StartX, BTN_TOP, BTN_DELETE_WIDTH, BTN_HEIGHT);
+  DelErrBtn.Caption := 'Удалить записи с ошибками'; DelErrBtn.OnClick := @DeleteErrorsBtnClick; DelErrBtn.Anchors := [akRight, akTop];
+  CheckWindowDelErrBtn := DelErrBtn;
+
+  ExportBtn := TButton.Create(W); ExportBtn.Parent := W;
+  ExportBtn.SetBounds(StartX + BTN_DELETE_WIDTH + BTN_SPACING, BTN_TOP, BTN_EXPORT_WIDTH, BTN_HEIGHT);
+  ExportBtn.Caption := 'Экспорт таблицы'; ExportBtn.OnClick := @ExportBtnClick; ExportBtn.Anchors := [akRight, akTop];
+  CheckWindowExportBtn := ExportBtn;
+
+  AutoFitBtn := TButton.Create(W); AutoFitBtn.Parent := W;
+  AutoFitBtn.SetBounds(StartX + BTN_DELETE_WIDTH + BTN_SPACING + BTN_EXPORT_WIDTH + BTN_SPACING, BTN_TOP, BTN_AUTOFIT_WIDTH, BTN_HEIGHT);
+  AutoFitBtn.Caption := 'Ширина столбцов авто'; AutoFitBtn.OnClick := @AutoFitBtnClick; AutoFitBtn.Anchors := [akRight, akTop];
+
+  Btn := TButton.Create(W); Btn.Parent := W;
+  Btn.SetBounds(StartX + BTN_DELETE_WIDTH + BTN_SPACING + BTN_EXPORT_WIDTH + BTN_SPACING + BTN_AUTOFIT_WIDTH + BTN_SPACING, BTN_TOP, BTN_TOGGLE_WIDTH, BTN_HEIGHT);
+  Btn.Caption := BUTTON_CAPTION_1; Btn.OnClick := @BtnClick; Btn.Anchors := [akRight, akTop];
+  CheckWindowBtn := Btn;
+
+  Grid := TKGrid.Create(W);
+  Grid.Parent := W;
+  Grid.Align := alClient;
+  Grid.Colors.CellLines := clSilver;
+  Grid.Options := [goColSizing, goFixedHorzLine, goFixedVertLine, goHorzLine,
+    goVertLine, goHeader, goEditing, goRowSelect,
+    goDrawFocusSelected, goDoubleBufferedCells];
+  Grid.FixedRows := 1;
+  Grid.FixedCols := 1;
+  Grid.BorderSpacing.Left := 4;
+  Grid.BorderSpacing.Right := 4;
+  Grid.OnDrawCell := @GridDrawCell;
+
+  CreatePopupMenu;
+  Grid.OnMouseDown := @GridMouseDown;
+
+  Buttons := TButtonPanel.Create(W);
+  Buttons.Parent := W;
+  Buttons.ShowButtons := [pbCancel, pbHelp];
+  Buttons.ShowBevel := False;
+  Buttons.HelpButton.OnClick := @HelpButtonClick;
+  CheckWindowButtons := Buttons;
+
+  ImportBtn := TButton.Create(W);
+  ImportBtn.Parent := W;
+  ImportBtn.Caption := 'Импортировать';
+  ImportBtn.Width := BTN_IMPORT_WIDTH;
+  ImportBtn.Height := BTN_IMPORT_HEIGHT;
+  ImportBtn.Anchors := [akRight, akBottom];
+  ImportBtn.Left := W.Width - BTN_IMPORT_WIDTH - BTN_IMPORT_RIGHT;
+  ImportBtn.Top := W.Height - BTN_IMPORT_HEIGHT - BTN_IMPORT_BOTTOM;
+  ImportBtn.OnClick := @ImportBtnClick;
+
+  UpdateStatusDisplay;
+
+  Grid.ColCount := FormFields.Count + 2;
+  Grid.RowCount := Length(GridData) + 1;
+
+  Grid.ColWidths[0] := COL_WIDTH_NUM;
+  Grid.Cells[0, 0] := '№';
+  for i := 1 to FormFields.Count do
+  begin
+    Grid.Cells[i, 0] := FormFields[i - 1];
+    Grid.ColWidths[i] := COL_WIDTH_FIELD;
+  end;
+  Grid.Cells[FormFields.Count + 1, 0] := 'Ошибка импорта';
+  Grid.ColWidths[FormFields.Count + 1] := COL_WIDTH_STATUS;
+
+  ShowAllRows;
+  Result := W.ShowModal;
+
+  CheckWindowImg := nil;
+  CheckWindowLbl := nil;
+  CheckWindowButtons := nil;
+  CheckWindowBtn := nil;
+  CheckWindowExportBtn := nil;
+  CheckWindowDelErrBtn := nil;
+  ImportBtn := nil;
+
+  W.Free;
+end;
+
+// -----------------------------------------------------------------------------
+// ДИАЛОГИ И РАБОТА С ФОРМАМИ
+// -----------------------------------------------------------------------------
+
+function OpenDialog(const InitFolder, DefaultFileName: String): String;
+begin
+  Result := '';
+  with TOpenDialog.Create(nil) do
+  begin
+    InitialDir := InitFolder;
+    FileName := DefaultFileName;
+    Title := 'Открыть файл для импорта';
+    Filter := 'Файлы CSV и Excel (*.csv, *.xlsx, *.xlsm, *.xls)|*.csv;*.xlsx;*.xlsm;*.xls|Все файлы|*.*';
+    DefaultExt := 'csv';
+    if Execute then Result := FileName;
+    Free;
+  end;
+end;
+
+function GetOrAddObject(LCbx: TdxLookupComboBox; const Value: String): Integer;
+var
+  SQL: String;
+begin
+  SQL := Format('select id, [%1:s] from [%0:s] where LOWER([%1:s])=''%2:s''',
+    [LCbx.SourceFormName, LCbx.SourceFieldName, StringReplace(Utf8LowerCase(Value), '''', '''''', [rfReplaceAll])]);
+  with TdxSQLQuery.Create(SQL) do
+  begin
+    Open;
+    if RecordCount = 0 then
+    begin
+      Append;
+      Field[1].AsString := Value;
+      Post;
+      ApplyUpdates;
+    end;
+    Result := Field[0].AsInteger;
+    Free;
+  end;
+end;
+
+function GetObjectId(LCbx: TdxLookupComboBox; const Value: String): Integer;
+var
+  SQL: String;
+begin
+  Result := 0;
+  SQL := Format('select id, [%1:s] from [%0:s] where LOWER([%1:s])=''%2:s''',
+    [LCbx.SourceFormName, LCbx.SourceFieldName, StringReplace(Utf8LowerCase(Value), '''', '''''', [rfReplaceAll])]);
+  with TdxSQLQuery.Create(SQL) do
+  begin
+    Open;
+    if RecordCount > 0 then Result := Field[0].AsInteger;
+    Free;
+  end;
+end;
+
+function UpdateFieldExists(var Fields: TVariantArray2d): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  for i := 0 to High(Fields) do
+    if Fields[i][1] = '1' then
+    begin
+      Result := True;
+      Exit;
+    end;
+end;
+
+function MakeFilter(Fm: TdxForm; var Values: TVariantArray2d): String;
+var
+  i: Integer;
+  S: String;
+  V: Variant;
+  C: TComponent;
+begin
+  Result := '';
+  for i := 0 to High(Values) do
+  begin
+    S := Values[i][0];
+    V := EvalExpr(Values[i][1], Self);
+    Result := Result + '[' + S + ']=';
+    if V = Null then
+      Result := Result + 'null'
+    else
+    begin
+      V := VarToStr(V);
+      C := Fm.FindComponentByFieldName(S);
+      if C is TdxCalcEdit then
+        V := StringReplace(V, GetFormatSettings.DecimalSeparator, '.', [])
+      else if (C is TdxCheckBox) or (C is TdxLookupComboBox) then
+      else
+        V := '''' + V + '''';
+      Result := Result + V;
+    end;
+    Result := Result + ' & ';
+  end;
+  Delete(Result, Length(Result) - 2, 3);
+end;
+
+// -----------------------------------------------------------------------------
+// ОСНОВНАЯ ФУНКЦИЯ ИМПОРТА
+// -----------------------------------------------------------------------------
+
+function ImportCSV(const InitFolder, DefaultFileName, CharSet: String;
+  SkipRows: Integer; Fm: TdxForm; Fields, CompareSettings, Values: TVariantArray2d;
+  UpdateData: Boolean; BlockOnErrors: Boolean): Boolean;
+var
+  FileName: String;
+  Data: TStringList;
+  S, FlNm, V, LocateFields, Flt: String;
+  i, j, n, LocateFieldsCount, id: Integer;
+  Cmp: TObject;
+  PW: TWindow;
+  LocateValues, InsertValues: array of Variant;
+  DoLocate: Boolean;
+  CancelWnd: TWindow;
+  CancelBtn: TButton;
+begin
+  Result := False;
+  g_CharSet := CharSet;
+  BlockImportIfErrors := BlockOnErrors;
+  CancelImport := False;
+
+  if (Fm.ParentForm <> nil) and (Fm.ParentForm.State = dsBrowse) then
+  begin
+    MsgBox('Внимание', 'Переведите форму в режим редактирования!');
+    Exit;
+  end;
+
+  LoadExistingRecords(Fm, Fields);
+
+  FileName := OpenDialog(InitFolder, DefaultFileName);
+
+  if FileName = '' then
+  begin
+    if ExistingRecords <> nil then
+    begin
+      ExistingRecords.Free;
+      ExistingRecords := nil;
+    end;
+    Exit;
+  end;
+
+  SetLength(InsertValues, Length(Values));
+  for i := 0 to High(Values) do
+    InsertValues[i] := EvalExpr(Values[i][1], Self);
+
+  FormFields := TStringList.Create;
+  CompareFields := TStringList.Create;
+  CompareForms := TStringList.Create;
+  Data := TStringList.Create;
+  PW := CreateProgress;
+
+  try
+    for i := 0 to High(Fields) do
+    begin
+      S := Fields[i][0];
+      Cmp := Fm.FindComponentByFieldName(S);
+      FormFields.AddObject(S, Cmp);
+
+      if Length(CompareSettings) > 0 then
+      begin
+        CompareForms.Add(VarToStr(CompareSettings[i][1]));
+        CompareFields.Add(VarToStr(CompareSettings[i][2]));
+      end
+      else
+      begin
+        CompareForms.Add('');
+        CompareFields.Add('');
+      end;
+    end;
+
+    // Инициализация NullWarnFields — последний элемент в строке Fields
+    SetLength(NullWarnFields, Length(Fields));
+    for i := 0 to High(Fields) do
+    begin
+      if Length(Fields[i]) > 0 then
+      begin
+        if VarToStr(Fields[i][Length(Fields[i]) - 1]) = 'Да' then
+          NullWarnFields[i] := True
+        else
+          NullWarnFields[i] := False;
+      end
+      else
+        NullWarnFields[i] := False;
+    end;
+
+    LocateFieldsCount := 0;
+    LocateFields := '';
+    if UpdateData then
+    begin
+      for i := 0 to High(Fields) do
+        if Fields[i][1] = '1' then
+        begin
+          LocateFields := LocateFields + Fields[i][0] + ';';
+          Inc(LocateFieldsCount);
+        end;
+      Delete(LocateFields, Length(LocateFields), 1);
+      SetLength(LocateValues, LocateFieldsCount);
+    end;
+
+    ShowProgress(PW, 'Чтение данных...');
+    Application.ProcessMessages;
+
+    CancelImport := False;
+    ReadDataFromFile(FileName, CharSet = 'ANSI', SkipRows);
+
+    // Закрываем окно прогресса чтения
+    PW.Close;
+
+    if CancelImport then
+    begin
+      MsgBox('Информация', 'Чтение данных прервано пользователем.');
+      if ExistingRecords <> nil then
+      begin
+        ExistingRecords.Free;
+        ExistingRecords := nil;
+      end;
+      Exit;
+    end;
+
+    if Length(GridData) = 0 then
+    begin
+      MsgBox('Внимание', 'Файл не содержит данных для импорта');
+      if ExistingRecords <> nil then
+      begin
+        ExistingRecords.Free;
+        ExistingRecords := nil;
+      end;
+      Exit;
+    end;
+
+    if ShowCheckDataWindow <> mrOk then
+    begin
+      if ExistingRecords <> nil then
+      begin
+        ExistingRecords.Free;
+        ExistingRecords := nil;
+      end;
+      Exit;
+    end;
+
+    // Создаём окно с кнопкой "Отмена" для этапа импорта
+    CancelImport := False;
+    CancelWnd := TWindow.Create;
+    CancelWnd.Width := 280;
+    CancelWnd.Height := 60;
+    CancelWnd.Caption := 'Импорт...';
+    CancelWnd.Position := poOwnerFormCenter;
+    CancelWnd.FormStyle := fsStayOnTop;
+
+    CancelBtn := TButton.Create(CancelWnd);
+    CancelBtn.Parent := CancelWnd;
+    CancelBtn.Caption := 'Отмена';
+    CancelBtn.Width := 100;
+    CancelBtn.Height := 25;
+    CancelBtn.Left := (CancelWnd.Width - 100) div 2;
+    CancelBtn.Top := 10;
+    CancelBtn.OnClick := @CancelImportClick;
+
+    CancelWnd.Show;
+    Application.ProcessMessages;
+
+    if Fm.PId = 0 then
+    begin
+      Flt := MakeFilter(Fm, Values);
+      if (Flt = '') and not UpdateFieldExists(Fields) then
+        Fm.OpenRecord(0)
+      else
+        Fm.OpenRecords(Flt, nil, False);
+    end;
+    Fm.DisableControls;
+
+    for i := 0 to High(GridData) do
+    begin
+      if CancelImport then
+      begin
+        if MessageDlg('Подтверждение', 'Прервать импорт? Уже импортировано ' + IntToStr(i) + ' строк.',
+          mtConfirmation, [mbYes, mbNo]) = mrYes then
+          Break;
+        CancelImport := False;
+      end;
+
+      try
+        if not HasRowErrors(i) and not IsEmptyRow(i) then
+        begin
+          if UpdateData and (LocateFieldsCount > 0) then
+          begin
+            n := 0; DoLocate := True;
+            for j := 0 to FormFields.Count - 1 do
+              if Fields[j][1] = '1' then
+              begin
+                S := GridData[i][j];
+                if S <> '' then
+                begin
+                  Cmp := FormFields.Objects[j];
+                  if Cmp is TdxLookupComboBox then
+                  begin
+                    id := GetObjectId(TdxLookupComboBox(Cmp), S);
+                    if id > 0 then
+                      LocateValues[n] := IntToStr(id)
+                    else
+                    begin DoLocate := False; Break; end;
+                  end
+                  else
+                    LocateValues[n] := S;
+                end
+                else
+                  LocateValues[n] := Null;
+                Inc(n);
+              end;
+
+            if DoLocate and Fm.Locate(LocateFields, LocateValues, [loCaseInsensitive]) then
+            begin
+              if Fm.Edit <> asOk then
+                RaiseException(erCustomError, 'Невозможно редактировать запись');
+            end
+            else
+              Fm.Append;
+          end
+          else
+            Fm.Append;
+
+          for j := 0 to FormFields.Count - 1 do
+          begin
+            FlNm := FormFields[j];
+            Cmp := FormFields.Objects[j];
+            V := GridData[i][j];
+            if V = '' then
+              Fm[FlNm] := Null
+            else if Cmp is TdxLookupComboBox then
+              with TdxLookupComboBox(Cmp) do
+              begin
+                KeyValue := GetOrAddObject(TdxLookupComboBox(Cmp), V);
+                Field.AsString := V;
+              end
+            else
+              Fm[FlNm] := V;
+          end;
+
+          for j := 0 to High(Values) do
+          begin
+            FlNm := Values[j][0];
+            Fm[FlNm] := InsertValues[j];
+          end;
+
+          Fm.Post;
+
+          if i mod 10 = 0 then
+          begin
+            CancelWnd.Caption := Format('Импортировано %d из %d', [i + 1, Length(GridData)]);
+            Application.ProcessMessages;
+          end;
+        end;
+      except
+        if Fm.State in [dsInsert, dsEdit] then Fm.Cancel;
+        Debug(Format('В строке %d произошла ошибка: %s', [i, ExceptionParam]));
+      end;
+    end;
+
+    CancelWnd.Free;
+    Result := True;
+  finally
+    if Fm.Opened then
+    begin
+      Fm.MoveFirst;
+      Fm.EnableControls;
+    end;
+    Data.Free;
+    FormFields.Free;
+    CompareFields.Free;
+    CompareForms.Free;
+    SetLength(NullWarnFields, 0);
+    if ExistingRecords <> nil then
+    begin
+      ExistingRecords.Free;
+      ExistingRecords := nil;
+    end;
+    if CheckCache <> nil then
+    begin
+      CheckCache.Free;
+      CheckCache := nil;
+    end;
+    for i := 0 to High(GridData) do
+    begin
+      SetLength(CellErrors[i], 0);
+      SetLength(NotFoundCells[i], 0);
+      SetLength(NullWarnCells[i], 0);
+      SetLength(GridData[i], 0);
+    end;
+    SetLength(CellErrors, 0);
+    SetLength(NotFoundCells, 0);
+    SetLength(NullWarnCells, 0);
+    SetLength(GridData, 0);
+    SetLength(LocateValues, 0);
+    SetLength(InsertValues, 0);
+    PW.Free;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// ДЕЙСТВИЯ
+// -----------------------------------------------------------------------------
+
+{@action
+id=A1B2C3D4-E5F6-4789-AB0C-1234567890EF
+target=button
+origname=ImportCSVToTable
+name=Импорт CSV/Excel в таблицу с проверкой_
+group=Импорт данных
+ui=<ui>
+  <folder name="initfolder" caption="Исходная папка"/>
+  <text name="filename" caption="Имя файла"/>
+  <list name="charset" caption="Кодировка" items="ANSI;UTF-8" defaultvalue="ANSI"/>
+  <number name="skipfirstrow" caption="Пропустить строки" defaultvalue="1" required="1"/>
+  <childform name="table" caption="Целевая таблица" required="1"/>
+  <grid name="fields" caption="Поля таблицы" height="250">
+    <field name="tablefield" caption="Поле таблицы" source="table" required="1" filter="text;number;date;time;object;checkbox"/>
+    <form name="compareform" caption="Сравнить с формой"/>
+    <field name="comparefield" caption="Поле для сравнения" source="compareform" filter="text"/>
+    <list name="nullwarn" caption="Предупреждать о пустом значении" items="Нет;Да" defaultvalue="Нет" width="180"/>
+  </grid>
+  <checkbox name="blockonerrors" caption="Запретить импорт при ошибках" defaultvalue="0"/>
+</ui>
+description=Импорт данных из Excel и CSV. Кэширование, автоподбор, дубликаты, отмена импорта.<br><br>
+<b>Предупреждать о пустом значении</b> — если выбрано "Да", пустые ячейки в этом поле будут выделены жёлтым цветом, а при импорте появится предупреждение.
+@}
+function ImportCSVToTable(const InitFolder, DefaultFileName, CharSet: String;
+  SkipRows: Integer; const TableName: String; Fields: TVariantArray2d;
+  BlockOnErrors: Boolean): Boolean;
+begin
+  Result := ImportCSV(InitFolder, DefaultFileName, CharSet, SkipRows,
+    Self.Forms[TableName], Fields, Fields, [], False, BlockOnErrors);
+end;
+
+{@action
+id=F47AC10B-58CC-4372-A567-0E02B2C3D479
+target=button
+origname=ImportCSVToForm
+name=Импорт CSV/Excel в форму_
+group=Импорт данных с проверкой
+ui=<ui>
+  <folder name="initfolder" caption="Исходная папка"/>
+  <text name="filename" caption="Имя файла"/>
+  <list name="charset" caption="Кодировка" items="ANSI;UTF-8" defaultvalue="ANSI"/>
+  <number name="skipfirstrow" caption="Пропустить строки" defaultvalue="1" required="1"/>
+  <form name="form" caption="Целевая форма" required="1"/>
+  <grid name="fields" caption="Поля формы" height="250">
+    <field name="formfield" caption="Поле формы" source="form" required="1" filter="text;number;date;time;object;checkbox"/>
+    <checkbox name="update" caption="Обновлять" width="80"/>
+    <form name="compareform" caption="Сравнить с формой"/>
+    <field name="comparefield" caption="Поле для сравнения" source="compareform" filter="text"/>
+    <list name="nullwarn" caption="Предупреждать о пустом значении" items="Нет;Да" defaultvalue="Нет" width="180"/>
+  </grid>
+  <grid name="values" caption="Вставить значения">
+    <field name="field" caption="Поле формы" source="form" required="1" filter="text;number;date;time;object;checkbox"/>
+    <expr name="expr" caption="Выражение"/>
+  </grid>
+  <checkbox name="blockonerrors" caption="Запретить импорт при ошибках" defaultvalue="0"/>
+</ui>
+description=Импорт данных из Excel и CSV. Кэширование, автоподбор, дубликаты, отмена импорта.<br><br>
+<b>Предупреждать о пустом значении</b> — если выбрано "Да", пустые ячейки в этом поле будут выделены жёлтым цветом, а при импорте появится предупреждение.
+@}
+function ImportCSVToForm(const InitFolder, DefaultFileName, CharSet: String;
+  SkipRows: Integer; const FormName: String; Fields, Values: TVariantArray2d;
+  BlockOnErrors: Boolean): Boolean;
+var
+  Fm: TdxForm;
+begin
+  Fm := TdxForm.Create(FormName);
+  try
+    Result := ImportCSV(InitFolder, DefaultFileName, CharSet, SkipRows, Fm,
+      Fields, Fields, Values, True, BlockOnErrors);
+  finally
+    Fm.Free;
+  end;
+end;

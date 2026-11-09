@@ -1,7 +1,8 @@
 // ============================================
-// Расширение "FileKeeper" v0.1
+// Расширение "FileKeeper" v0.1.1
 // Основано на расширении "DX Хранилище файлов"
-//
+// Version=1.1
+// Поправил неработающий счетчик файлов
 
 {@module
 Author=Pozharskiy1991
@@ -615,11 +616,22 @@ var
 begin
   Result := 0;
   if (FmId <= 0) or (ARecId <= 0) then Exit;
-  SQL := 'select count(*) as cnt from [file] f where f.[' + FIELD_RECORD_ID + '] = ' + IntToStr(ARecId);
+  SQL := 'select count(f.id) from [file] f ' +
+         'inner join [FileStore] fs on f.pid = fs.id ' +
+         'where fs.[' + FIELD_FORM_ID + '] = ' + IntToStr(FmId) +
+         ' and fs.[' + FIELD_RECORD_ID + '] = ' + IntToStr(ARecId);
   try
     Q := SQLSelect(SQL);
-    try Q.Open; if not Q.EOF then Result := Q.AsI['cnt']; finally Q.Free; end;
-  except Result := 0; end;
+    try
+      Q.Open;
+      if not Q.EOF then
+        Result := Q.Field[0].AsInteger;
+    finally
+      Q.Free;
+    end;
+  except
+    Result := 0;
+  end;
 end;
 
 // ============================================================
