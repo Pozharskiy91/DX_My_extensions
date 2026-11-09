@@ -1,0 +1,340 @@
+{@module
+Author=Developer
+Version=1.0
+Description=DxGuardRules — модуль глобальных ограничений действий в DataExpress.
+Позволяет запретить удаление, добавление и изменение записей
+для выбранных форм по условию.
+@}
+
+{@action
+Id=B2C3D4E5-F6A7-8901-BCDE-F23456789012
+Target=main
+OrigName=DxGuardRules
+Name=DxGuardRules — глобальные ограничения действий
+Group=Ограничения
+UI=<ui>
+  <divider caption="Правила по формам"/>
+  <grid name="rules" caption="Правила">
+    <form name="targetForm" caption="Форма" required="1"/>
+    <expr name="formCondition" caption="Условие для формы" required="0"/>
+    <list name="action" caption="Действие" items="Запретить удаление;Запретить добавление;Запретить изменение" required="1"/>
+  </grid>
+</ui>
+Description=DxGuardRules — глобальные ограничения действий.<br><br>
+Позволяет запретить удаление, добавление и изменение записей
+для выбранных форм по условию.<br><br>
+<b>Правила</b> — для каждой формы можно задать своё условие и действие.<br>
+Если условие пустое — ограничение применяется всегда.<br><br>
+<b>Важно:</b> ограничение реализуется через скрытие пунктов меню
+и проверку в обработчиках формы.
+@}
+
+type
+  TDGRRule = record
+    FormName:    String;
+    Condition:   String;
+    Action:      String;   // 'Запретить удаление' / 'Запретить добавление' / 'Запретить изменение'
+  end;
+
+  TDGRFormRestrict = record
+    Fm:              TdxForm;
+    Rules:           array of TDGRRule;
+    OldStateChange:  TNotifyEvent;
+    OldBeforeDelete: TNotifyEvent;
+    OldBeforeInsert: TNotifyEvent;
+    OldBeforeEdit:   TNotifyEvent;
+    Skip:            Boolean;
+  end;
+
+var
+  DGR_DisableAction:   Boolean;
+  DGR_Rules:           array of TDGRRule;
+  DGR_FormArr:         array of TDGRFormRestrict;
+  DGR_OldOnCreateForm: TCreateFormEvent;
+  DGR_OldDBClose:      TNotifyEvent;
+
+// ------------------------------------------------------------
+// ВСПОМОГАТЕЛЬНЫЕ
+// ------------------------------------------------------------
+
+function DGR_FindForm(AForm: TObject): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := High(DGR_FormArr) downto 0 do
+    if (DGR_FormArr[i].Fm = AForm) and not DGR_FormArr[i].Skip then
+    begin
+      Result := i;
+      Exit;
+    end;
+end;
+
+function DGR_GetRulesForForm(const FormName: String): array of TDGRRule;
+var
+  i, n: Integer;
+begin
+  SetLength(Result, 0);
+  n := 0;
+  for i := 0 to High(DGR_Rules) do
+    if Utf8CompareText(DGR_Rules[i].FormName, FormName) = 0 then
+    begin
+      SetLength(Result, n + 1);
+      Result[n] := DGR_Rules[i];
+      Inc(n);
+    end;
+end;
+
+// Проверяет, нужно ли применить ограничение для формы и действия
+function DGR_ShouldBlock(Fm: TdxForm; const Action: String): Boolean;
+var
+  i, j: Integer;
+  Cond: String;
+begin
+  Result := False;
+
+  for i := 0 to High(DGR_FormArr) do
+  begin
+    if DGR_FormArr[i].Fm <> Fm then Continue;
+
+    for j := 0 to High(DGR_FormArr[i].Rules) do
+    begin
+      if DGR_FormArr[i].Rules[j].Action <> Action then Continue;
+
+      Cond := DGR_FormArr[i].Rules[j].Condition;
+
+      // Пустое условие — блокируем всегда
+      if Trim(Cond) = '' then
+      begin
+        Result := True;
+        Exit;
+      end;
+
+      try
+        if EvalExpr(Cond, Fm) then
+        begin
+          Result := True;
+          Exit;
+        end;
+      except
+        // условие не вычислилось — не блокируем
+      end;
+    end;
+  end;
+end;
+
+// ------------------------------------------------------------
+// СКРЫТИЕ ПУНКТОВ МЕНЮ
+// ------------------------------------------------------------
+
+procedure DGR_UpdateMenu(Fm: TdxForm);
+var
+  BlockDel, BlockIns, BlockEdit: Boolean;
+begin
+  BlockDel  := DGR_ShouldBlock(Fm, 'Запретить удаление');
+  BlockIns  := DGR_ShouldBlock(Fm, 'Запретить добавление');
+  BlockEdit := DGR_ShouldBlock(Fm, 'Запретить изменение');
+
+  if Fm.Grid <> nil then
+  begin
+    if Fm.Grid.PopupMenu <> nil then
+    begin
+      if BlockDel then
+        Fm.Grid.PopupMenu.Items[MI_FORM_DELETE].Visible := False;
+
+      if BlockIns then
+      begin
+        Fm.Grid.PopupMenu.Items[MI_FORM_APPEND].Visible       := False;
+        Fm.Grid.PopupMenu.Items[MI_FORM_DUPLICATE].Visible    := False;
+        Fm.Grid.PopupMenu.Items[MI_FORM_DUPLICATEALL].Visible := False;
+      end;
+
+      if BlockEdit then
+        Fm.Grid.PopupMenu.Items[MI_FORM_EDIT].Visible := False;
+    end;
+  end;
+end;
+
+// ------------------------------------------------------------
+// ОБРАБОТЧИКИ ФОРМЫ
+// ------------------------------------------------------------
+
+procedure DGR_FormStateChange(Sender: TObject);
+var
+  n:    Integer;
+  Data: TDGRFormRestrict;
+begin
+  n := DGR_FindForm(Sender);
+  if n < 0 then Exit;
+
+  Data := DGR_FormArr[n];
+
+  if Data.OldStateChange <> nil then
+  try
+    Data.Skip := True;
+    try
+      Data.OldStateChange(Sender);
+    except
+    end;
+  finally
+    Data.Skip := False;
+  end;
+
+  DGR_UpdateMenu(TdxForm(Sender));
+end;
+
+procedure DGR_FormBeforeDelete(Sender: TObject);
+var
+  n:    Integer;
+  Data: TDGRFormRestrict;
+begin
+  n := DGR_FindForm(Sender);
+  if n < 0 then Exit;
+
+  Data := DGR_FormArr[n];
+
+  if Data.OldBeforeDelete <> nil then
+  try
+    Data.Skip := True;
+    try
+      Data.OldBeforeDelete(Sender);
+    except
+    end;
+  finally
+    Data.Skip := False;
+  end;
+
+  if DGR_ShouldBlock(TdxForm(Sender), 'Запретить удаление') then
+    MsgBox('DxGuardRules', 'Удаление записей в этой форме запрещено.');
+end;
+
+procedure DGR_FormBeforeInsert(Sender: TObject);
+var
+  n:    Integer;
+  Data: TDGRFormRestrict;
+begin
+  n := DGR_FindForm(Sender);
+  if n < 0 then Exit;
+
+  Data := DGR_FormArr[n];
+
+  if Data.OldBeforeInsert <> nil then
+  try
+    Data.Skip := True;
+    try
+      Data.OldBeforeInsert(Sender);
+    except
+    end;
+  finally
+    Data.Skip := False;
+  end;
+
+  if DGR_ShouldBlock(TdxForm(Sender), 'Запретить добавление') then
+    MsgBox('DxGuardRules', 'Добавление записей в этой форме запрещено.');
+end;
+
+procedure DGR_FormBeforeEdit(Sender: TObject);
+var
+  n:    Integer;
+  Data: TDGRFormRestrict;
+begin
+  n := DGR_FindForm(Sender);
+  if n < 0 then Exit;
+
+  Data := DGR_FormArr[n];
+
+  if Data.OldBeforeEdit <> nil then
+  try
+    Data.Skip := True;
+    try
+      Data.OldBeforeEdit(Sender);
+    except
+    end;
+  finally
+    Data.Skip := False;
+  end;
+
+  if DGR_ShouldBlock(TdxForm(Sender), 'Запретить изменение') then
+    MsgBox('DxGuardRules', 'Изменение записей в этой форме запрещено.');
+end;
+
+// ------------------------------------------------------------
+// ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ
+// ------------------------------------------------------------
+
+procedure DGR_OnCreateForm(Sender: TObject; Form: TdxForm);
+var
+  Rules: array of TDGRRule;
+  Data:  TDGRFormRestrict;
+  n:     Integer;
+begin
+  if DGR_OldOnCreateForm <> nil then
+  try
+    DGR_OldOnCreateForm(Sender, Form);
+  except
+  end;
+
+  if DGR_DisableAction then Exit;
+
+  Rules := DGR_GetRulesForForm(Form.FormCaption);
+  if Length(Rules) = 0 then Exit;
+
+  Data.Fm              := Form;
+  Data.Rules           := Rules;
+  Data.Skip            := False;
+  Data.OldStateChange  := Form.OnStateChange;
+  Data.OldBeforeDelete := Form.OnBeforeDelete;
+  Data.OldBeforeInsert := Form.OnBeforeInsert;
+  Data.OldBeforeEdit   := Form.OnBeforeEdit;
+
+  Form.OnStateChange  := @DGR_FormStateChange;
+  Form.OnBeforeDelete := @DGR_FormBeforeDelete;
+  Form.OnBeforeInsert := @DGR_FormBeforeInsert;
+  Form.OnBeforeEdit   := @DGR_FormBeforeEdit;
+
+  n := Length(DGR_FormArr);
+  SetLength(DGR_FormArr, n + 1);
+  DGR_FormArr[n] := Data;
+
+  DGR_UpdateMenu(Form);
+end;
+
+procedure DGR_DBClose(Sender: TObject);
+begin
+  SetLength(DGR_FormArr, 0);
+  SetLength(DGR_Rules, 0);
+  if DGR_OldDBClose <> nil then
+    DGR_OldDBClose(Sender);
+end;
+
+// ------------------------------------------------------------
+// ГЛАВНАЯ ФУНКЦИЯ ДЕЙСТВИЯ
+// ------------------------------------------------------------
+
+function DxGuardRules(Rules: TVariantArray2d): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+
+  DGR_DisableAction := True;
+  try
+    SetLength(DGR_Rules, Length(Rules));
+    for i := 0 to High(Rules) do
+    begin
+      DGR_Rules[i].FormName  := VarToStr(Rules[i][0]);
+      DGR_Rules[i].Condition := VarToStr(Rules[i][1]);
+      DGR_Rules[i].Action    := VarToStr(Rules[i][2]);
+    end;
+
+    DGR_OldOnCreateForm := MainWindow.OnCreateForm;
+    MainWindow.OnCreateForm := @DGR_OnCreateForm;
+
+    DGR_OldDBClose := MainWindow.OnDatabaseClose;
+    MainWindow.OnDatabaseClose := @DGR_DBClose;
+
+    Result := True;
+  finally
+    DGR_DisableAction := False;
+  end;
+end;

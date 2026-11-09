@@ -1,0 +1,409 @@
+{@module
+Author=Pozharskiy1991
+Version=0.4
+Description=Добавляет пункт "Нажать кнопку" в контекстное меню списка. Кнопки для нажатия задаются в таблице настроек. В меню отображаются только те кнопки, которые существуют на текущей форме.
+@}
+
+{@action
+Id=4ce478f2-b5ab-40b4-90c1-0ea8a96ce813
+Target=main
+OrigName=AddButtonClickMenu
+Name=GridContextButtons
+group=Дополнительные действия/Интерфейс
+
+ui=<ui>
+  <checkbox name="ShowDebug" caption="Показывать сообщения об ошибках" defaultvalue="0" />
+  <text name="MenuItemCaption" caption="Текст пункта меню" defaultvalue="Нажать кнопку" required="1" />
+  <divider />
+  <grid name="ButtonsGrid" caption="Список кнопок для нажатия" height="250">
+    <checkbox name="Active" caption="Активна" width="60" defaultvalue="1" />
+    <text name="ButtonName" caption="Имя или подпись кнопки" width="200" required="1" />
+    <text name="ButtonHint" caption="Подсказка (необязательно)" width="200" />
+  </grid>
+  <divider />
+</ui>
+description=<html>
+<b>Расширение "Дополнительные кнопки списка"</b><br/><br/>
+Добавляет пункт в контекстное меню списка для программного нажатия кнопок на форме.<br/><br/>
+<b>Возможности:</b><br/>
+• Поддержка имен и подписей кнопок (поиск по имени приоритетнее)<br/>
+• Автоматическая фильтрация - показываются только существующие на форме кнопки<br/>
+• Возможность временно отключать кнопки без удаления из списка<br/>
+• Подсказки при наведении на пункты меню<br/>
+• Сохранение цепочки обработчиков событий (OnCreateForm, OnDatabaseClose)<br/>
+<br/>
+<b>Настройка:</b><br/>
+1. Добавьте кнопки в таблицу (кнопка +)<br/>
+2. Укажите имя компонента (рекомендуется) или текст на кнопке<br/>
+3. При желании добавьте подсказку<br/>
+4. Отметьте активные кнопки<br/>
+<br/>
+<b>Примечание:</b> Поиск по имени компонента надежнее, так как подпись кнопки может меняться (например, при обновлении счетчика файлов).
+</html>
+@}
+
+var
+  OldOnCreateForm: TCreateFormEvent;
+  OldOnDatabaseClose: TNotifyEvent;
+  ShowDebugMsg: Boolean;
+  MenuText: String;
+  ButtonsList: TVariantArray2d;
+
+// ============================================================
+// РЕКУРСИВНЫЙ ПОИСК КНОПКИ В КОНТЕЙНЕРЕ И ВСЕХ ВЛОЖЕННЫХ
+// ============================================================
+function FindButtonRecursive(Container: TWinControl; SearchText: String; var FoundBy: String): TdxButton;
+var
+  i: Integer;
+  Component: TComponent;
+  Btn: TdxButton;
+  Control: TWinControl;
+  CleanCaption: String;
+begin
+  Result := nil;
+  if Container = nil then Exit;
+
+  for i := 0 to Container.ComponentCount - 1 do
+  begin
+    Component := Container.Components[i];
+
+    if Component is TdxButton then
+    begin
+      Btn := TdxButton(Component);
+
+      if Btn.Name = SearchText then
+      begin
+        Result := Btn;
+        FoundBy := 'имени';
+        Exit;
+      end;
+
+      if Btn.Caption = SearchText then
+      begin
+        Result := Btn;
+        FoundBy := 'точной подписи';
+        Exit;
+      end;
+
+      CleanCaption := Btn.Caption;
+      if Pos(' (', CleanCaption) > 0 then
+        CleanCaption := Copy(CleanCaption, 1, Pos(' (', CleanCaption) - 1);
+
+      if CleanCaption = SearchText then
+      begin
+        Result := Btn;
+        FoundBy := 'подписи без счетчика';
+        Exit;
+      end;
+    end;
+
+    if Component is TWinControl then
+    begin
+      Control := TWinControl(Component);
+      if Control <> Container then
+      begin
+        Result := FindButtonRecursive(Control, SearchText, FoundBy);
+        if Result <> nil then
+          Exit;
+      end;
+    end;
+  end;
+end;
+
+// ============================================================
+// ПОИСК КНОПКИ НА ФОРМЕ (ВКЛЮЧАЯ ВСЕ КОНТЕЙНЕРЫ)
+// ============================================================
+function FindButtonOnForm(Form: TdxForm; SearchText: String): TdxButton;
+var
+  FoundBy: String;
+begin
+  Result := nil;
+  FoundBy := '';
+  if (Form = nil) or (SearchText = '') then Exit;
+
+  Result := FindButtonRecursive(Form, SearchText, FoundBy);
+  if Result <> nil then
+  begin
+    if ShowDebugMsg then
+      Debug('Кнопка "' + SearchText + '" найдена по ' + FoundBy);
+    Exit;
+  end;
+
+  if Form.EditWindow <> nil then
+  begin
+    Result := FindButtonRecursive(Form.EditWindow, SearchText, FoundBy);
+    if Result <> nil then
+    begin
+      if ShowDebugMsg then
+        Debug('Кнопка "' + SearchText + '" найдена в EditWindow по ' + FoundBy);
+      Exit;
+    end;
+  end;
+
+  if MainWindow.ToolBar <> nil then
+  begin
+    Result := FindButtonRecursive(MainWindow.ToolBar, SearchText, FoundBy);
+    if Result <> nil then
+    begin
+      if ShowDebugMsg then
+        Debug('Кнопка "' + SearchText + '" найдена в ToolBar по ' + FoundBy);
+      Exit;
+    end;
+  end;
+
+  if ShowDebugMsg then
+    Debug('Кнопка "' + SearchText + '" не найдена');
+end;
+
+// ============================================================
+// ПОЛУЧЕНИЕ АКТИВНОЙ ФОРМЫ
+// ============================================================
+function GetActiveForm: TdxForm;
+var
+  ActiveIndex: Integer;
+begin
+  Result := nil;
+  ActiveIndex := MainWindow.Pages.TabIndex;
+  if ActiveIndex >= 0 then
+    Result := MainWindow.FormViews[ActiveIndex].Form;
+end;
+
+// ============================================================
+// ОБРАБОТЧИК КЛИКА ПО ПУНКТУ МЕНЮ
+// ============================================================
+procedure OnMenuItemClick(Sender: TObject);
+var
+  CurrentForm: TdxForm;
+  ButtonName: String;
+  Button: TdxButton;
+  MenuItem: TMenuItem;
+begin
+  MenuItem := TMenuItem(Sender);
+  ButtonName := MenuItem.Caption;
+
+  CurrentForm := GetActiveForm;
+  if CurrentForm = nil then
+  begin
+    if ShowDebugMsg then Debug('Нет активной формы');
+    MessageDlg('Ошибка', 'Нет активной формы', mtError, [mbOk]);
+    Exit;
+  end;
+
+  Button := FindButtonOnForm(CurrentForm, ButtonName);
+  if Button = nil then
+  begin
+    if ShowDebugMsg then Debug('Кнопка "' + ButtonName + '" не найдена');
+    MessageDlg('Ошибка', 'Кнопка "' + ButtonName + '" не найдена на форме', mtError, [mbOk]);
+    Exit;
+  end;
+
+  Button.Click;
+
+  if ShowDebugMsg then
+    Debug('Нажата кнопка: ' + Button.Name + ' (подпись: ' + Button.Caption + ')');
+end;
+
+// ============================================================
+// ФУНКЦИЯ: ОЧИСТКА ПОДПИСИ КНОПКИ ОТ СЧЕТЧИКА
+// ============================================================
+function GetCleanButtonCaption(const Caption: String): String;
+var
+  p: Integer;
+begin
+  Result := Caption;
+  p := Pos(' (', Result);
+  if p > 0 then
+    Result := Copy(Result, 1, p - 1);
+end;
+
+// ============================================================
+// СОЗДАНИЕ ПОДМЕНЮ СО СПИСКОМ КНОПОК
+// ============================================================
+procedure AddButtonsSubMenu(PopupMenu: TPopupMenu; ParentMenuItem: TMenuItem; CurrentForm: TdxForm);
+var
+  i: Integer;
+  SubMenuItem: TMenuItem;
+  ButtonName: String;
+  ButtonHint: String;
+  ActiveValue: String;
+  Btn: TdxButton;
+begin
+  for i := 0 to Length(ButtonsList) - 1 do
+  begin
+    if Length(ButtonsList[i]) > 0 then
+      ActiveValue := VarToStr(ButtonsList[i][0])
+    else
+      ActiveValue := '0';
+
+    if (ActiveValue <> '1') and (ActiveValue <> 'True') and (ActiveValue <> 'true') then
+      Continue;
+
+    if Length(ButtonsList[i]) > 1 then
+      ButtonName := VarToStr(ButtonsList[i][1])
+    else
+      ButtonName := '';
+
+    if ButtonName = '' then Continue;
+
+    Btn := FindButtonOnForm(CurrentForm, ButtonName);
+    if Btn = nil then
+    begin
+      if ShowDebugMsg then
+        Debug('Кнопка "' + ButtonName + '" не найдена на форме "' + CurrentForm.FormCaption + '"');
+      Continue;
+    end;
+
+    if Length(ButtonsList[i]) > 2 then
+      ButtonHint := VarToStr(ButtonsList[i][2])
+    else
+      ButtonHint := '';
+
+    SubMenuItem := TMenuItem.Create(PopupMenu);
+    SubMenuItem.Caption := GetCleanButtonCaption(Btn.Caption);
+
+    if ButtonHint <> '' then
+      SubMenuItem.Hint := ButtonHint;
+    SubMenuItem.Tag := i;
+    SubMenuItem.OnClick := @OnMenuItemClick;
+    ParentMenuItem.Add(SubMenuItem);
+
+    if ShowDebugMsg then
+      Debug('Добавлена кнопка "' + Btn.Name + '" с подписью "' + Btn.Caption + '"');
+  end;
+end;
+
+// ============================================================
+// ДОБАВЛЕНИЕ ПУНКТА МЕНЮ В КОНТЕКСТНОЕ МЕНЮ ГРИДА
+// ============================================================
+procedure AddMenuItemToGrid(Grid: TdxGrid);
+var
+  MainMenuItem: TMenuItem;
+  CurrentForm: TdxForm;
+  i: Integer;
+  Found: Boolean;
+begin
+  if Grid = nil then Exit;
+  if Grid.PopupMenu = nil then Exit;
+
+  // Проверяем, есть ли уже такой пункт меню
+  Found := False;
+  for i := 0 to Grid.PopupMenu.Items.Count - 1 do
+    if Grid.PopupMenu.Items[i].Caption = MenuText then
+    begin
+      Found := True;
+      Break;
+    end;
+
+  if Found then Exit;
+
+  CurrentForm := Grid.Form;
+  if CurrentForm = nil then Exit;
+
+  MainMenuItem := TMenuItem.Create(Grid);
+  MainMenuItem.Caption := MenuText;
+
+  AddButtonsSubMenu(Grid.PopupMenu, MainMenuItem, CurrentForm);
+
+  if MainMenuItem.Count > 0 then
+  begin
+    Grid.PopupMenu.Items.Add(MainMenuItem);
+    if ShowDebugMsg then
+      Debug('Добавлен пункт меню "' + MenuText + '" с ' + IntToStr(MainMenuItem.Count) + ' кнопками для формы "' + CurrentForm.FormCaption + '"');
+  end
+  else
+  begin
+    MainMenuItem.Free;
+    if ShowDebugMsg then
+      Debug('Для формы "' + CurrentForm.FormCaption + '" нет доступных кнопок, пункт меню не добавлен');
+  end;
+end;
+
+// ============================================================
+// ОБРАБОТЧИК СОЗДАНИЯ ФОРМЫ (с сохранением цепочки)
+// ============================================================
+procedure MainWindow_OnCreateForm(Sender: TObject; Form: TdxForm);
+begin
+  try
+    if (Form <> nil) and (Form.Grid <> nil) then
+      AddMenuItemToGrid(Form.Grid);
+  finally
+    if OldOnCreateForm <> nil then
+      OldOnCreateForm(Sender, Form);
+  end;
+end;
+
+// ============================================================
+// ОБРАБОТЧИК ЗАКРЫТИЯ БАЗЫ (с сохранением цепочки)
+// ============================================================
+procedure MainWindow_OnDatabaseClose(Sender: TObject);
+begin
+  try
+    // Очистка ресурсов
+    SetLength(ButtonsList, 0);
+  finally
+    if OldOnDatabaseClose <> nil then
+      OldOnDatabaseClose(Sender);
+  end;
+end;
+
+// ============================================================
+// ОСНОВНАЯ ПРОЦЕДУРА
+// ============================================================
+procedure AddButtonClickMenu(ShowDebug: Integer; MenuItemCaption: String; ButtonsGrid: TVariantArray2d);
+var
+  i: Integer;
+  ActiveCount: Integer;
+  ActiveValue: String;
+begin
+  ShowDebugMsg := (ShowDebug = 1);
+  MenuText := MenuItemCaption;
+  ButtonsList := ButtonsGrid;
+
+  if ShowDebugMsg then
+    Debug('Активация расширения "' + MenuText + '"');
+
+  if Length(ButtonsList) = 0 then
+  begin
+    MessageDlg('Внимание', 'Не задано ни одной кнопки в таблице', mtWarning, [mbOk]);
+    Exit;
+  end;
+
+  ActiveCount := 0;
+  for i := 0 to Length(ButtonsList) - 1 do
+  begin
+    if Length(ButtonsList[i]) > 0 then
+      ActiveValue := VarToStr(ButtonsList[i][0])
+    else
+      ActiveValue := '0';
+
+    if (ActiveValue = '1') or (ActiveValue = 'True') or (ActiveValue = 'true') then
+      ActiveCount := ActiveCount + 1;
+  end;
+
+  if ShowDebugMsg then
+    Debug('Загружено кнопок: ' + IntToStr(Length(ButtonsList)) + ', активных: ' + IntToStr(ActiveCount));
+
+  if ActiveCount = 0 then
+  begin
+    MessageDlg('Внимание', 'Нет активных кнопок. Отметьте хотя бы одну кнопку как активную.', mtWarning, [mbOk]);
+    Exit;
+  end;
+
+  // Сохраняем старый обработчик OnCreateForm и подменяем своим
+  OldOnCreateForm := MainWindow.OnCreateForm;
+  MainWindow.OnCreateForm := @MainWindow_OnCreateForm;
+
+  // Сохраняем старый обработчик OnDatabaseClose и подменяем своим
+  OldOnDatabaseClose := MainWindow.OnDatabaseClose;
+  MainWindow.OnDatabaseClose := @MainWindow_OnDatabaseClose;
+
+  // Обрабатываем уже открытые формы
+  for i := 0 to MainWindow.Pages.PageCount - 1 do
+  begin
+    if (MainWindow.FormViews[i].Form <> nil) and (MainWindow.FormViews[i].Form.Grid <> nil) then
+      AddMenuItemToGrid(MainWindow.FormViews[i].Form.Grid);
+  end;
+
+  if ShowDebugMsg then
+    Debug('Расширение активировано!');
+end;
