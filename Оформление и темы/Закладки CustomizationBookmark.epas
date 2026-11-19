@@ -1,0 +1,829 @@
+{@module
+Author=Stark, Pozharskiy1991
+Version=2.3
+Description=Скрывает группу закладок создавая на месте закладок ссылки. Индивидуальная настройка каждой закладки.
+Добавлена опция: повторный клик на активной закладке скрывает её содержимое.
+Рефакторинг: защита от повторного вызова, Skip-флаг в AfterScroll, чистка мёртвого кода.
+@}
+
+{@action
+Id=59E17B88-182D-458B-8888-TRYUD6C44444
+Target=form
+OrigName=CustomizationBookmark
+Name=Закладки CustomizationBookmark
+Group=Настройки
+ui=<ui>
+   <component name="dxP2" caption="TdxPageControl" filter="TdxPageControl" required="1" />
+   <divider />
+   <grid name="TabsGrid" caption="Настройка закладок (порядок соответствует порядку закладок)" height="250">
+     <checkbox name="Enabled" caption="Включена" width="70" defaultvalue="1" />
+     <text name="TabName" caption="Название закладки" width="150" defaultvalue=" " />
+     <text name="LeftMargin" caption="Отступ слева" width="80" defaultvalue="0" />
+     <text name="RightMargin" caption="Отступ справа" width="80" defaultvalue="0" />
+   </grid>
+   <divider />
+   <text name="FontSize" caption="Размер шрифта (0 = по умолчанию)" defaultvalue="0" />
+   <color name="FontColor" caption="Цвет ссылок" defaultvalue="$FF8B2D" />
+   <color name="HoverColor" caption="Цвет при наведении" defaultvalue="clBlue" />
+   <divider />
+   <list name="Orientation" caption="Ориентация" items="Горизонтальная;Вертикальная" defaultvalue="Горизонтальная" />
+   <list name="Animation" caption="Анимация при наведении" items="Нет;Увеличение шрифта;Жирный шрифт;Увеличение + жирный" defaultvalue="Нет" />
+   <checkbox name="EnableUnderline" caption="Подчеркивание активной закладки" defaultvalue="1" />
+   <divider />
+   <text name="MaxWidth" caption="Макс. ширина для переноса текста (0 = без переноса)" defaultvalue="0" />
+   <divider />
+   <checkbox name="ShowSeparator" caption="Показывать разделительную линию" defaultvalue="1" />
+   <color name="SeparatorColor" caption="Цвет разделительной линии" defaultvalue="clGray" />
+   <list name="SeparatorStyle" caption="Стиль линии" items="Сплошная;Пунктир;Точечная;Штрихпунктирная" defaultvalue="Сплошная" />
+   <text name="SeparatorWidth" caption="Толщина линии (пиксели)" defaultvalue="1" />
+   <text name="SeparatorOffset" caption="Отступ линии от края (пиксели)" defaultvalue="30" />
+   <text name="SeparatorMargin" caption="Отступ полей формы от линии (пиксели)" defaultvalue="10" />
+   <divider />
+   <checkbox name="HideOnSecondClick" caption="Повторный клик скрывает содержимое" defaultvalue="0" texthint="При повторном нажатии на активную закладку содержимое скрывается" />
+</ui>
+description=<html>
+<b>📌 Расширение "Закладки CustomizationBookmark"</b><br/><br/>
+Скрывает стандартные закладки TdxPageControl и заменяет их на стилизованные ссылки.<br/><br/>
+<b>🔧 ВОЗМОЖНОСТИ:</b><br/>
+• 📑 Индивидуальная настройка каждой закладки (вкл/выкл, отступы)<br/>
+• 🎨 Гибкая настройка внешнего вида (цвета, шрифты, анимация)<br/>
+• 📐 Две ориентации: горизонтальная и вертикальная<br/>
+• ✨ Анимация при наведении (увеличение, жирный шрифт)<br/>
+• 📏 Разделительная линия с настраиваемым стилем и отступами<br/>
+• 📝 Автоматический перенос длинного текста<br/>
+• 🔄 Повторный клик на активной закладке скрывает содержимое<br/>
+<br/>
+<b>📖 ИНСТРУКЦИЯ:</b><br/>
+1. Выберите компонент TdxPageControl на форме<br/>
+2. В таблице настройте каждую закладку:<br/>
+  &nbsp;&nbsp;&nbsp;✓ Вкл/Выкл - показать/скрыть закладку в меню<br/>
+  &nbsp;&nbsp;&nbsp;✓ Отступы - дополнительные отступы для конкретной закладки<br/>
+3. Настройте общие параметры (цвета, ориентацию, анимацию)<br/>
+4. При необходимости включите "Повторный клик скрывает содержимое"<br/>
+5. При необходимости настройте разделительную линию<br/>
+6. Сохраните и запустите форму<br/>
+<br/>
+<b>💡 ПРИМЕЧАНИЯ:</b><br/>
+• Размер шрифта "0" означает использование шрифта формы<br/>
+• Отключенные закладки не отображаются в меню<br/>
+• Для применения изменений пересохраните действие<br/>
+</html>
+@}
+
+type
+  TQTData = record
+    selfT: TdxForm;
+    Lb: array of TLabel;
+    PC: TdxPageControl;
+    OnBefCl, OnAfterScrollselfT, QT_OnShow: TNotifyEvent;
+    ArrL, ArrT: array of Integer;
+    ArrS, ArrSS: array of Variant;
+    FontSize: Integer;
+    NormalFontSize: Integer;
+    FontColor, HoverColor: TColor;
+    Spacing: Integer;
+    LastTabVisible: array of Boolean;
+    LastTabCaption: array of String;
+    LeftMargins: array of Integer;
+    RightMargins: array of Integer;
+    Initialized: Boolean;
+    Orientation: String;
+    MaxWidth: Integer;
+    Animation: String;
+    EnableUnderline: Boolean;
+    HideOnSecondClick: Boolean;
+    ShowSeparator: Boolean;
+    SeparatorColor: TColor;
+    SeparatorStyle: String;
+    SeparatorWidth: Integer;
+    SeparatorOffsetValue: Integer;
+    SeparatorMarginValue: Integer;
+    SeparatorLine: TShape;
+    SeparatorOffset: Integer;
+    FormViewType: TViewType;
+    PCLeft, PCTop: Integer;
+    Skip: Boolean;
+  end;
+
+var
+  QTArr: array of TQTData;
+  MainWindow_OldOnCreateForm_CB: TCreateFormEvent;
+  MainWindow_OldOnDataBaseClose_CB: TNotifyEvent;
+
+// -----------------------------------------------------------------------------
+// ВСПОМОГАТЕЛЬНЫЕ
+// -----------------------------------------------------------------------------
+
+function RandomB(a, b: Integer): Integer;
+begin
+  if a > b then
+    Result := Random(a - b + 1) + b
+  else
+    Result := Random(b - a + 1) + a;
+end;
+
+function SafeStrToInt(Value: string; Default: Integer): Integer;
+begin
+  Value := Trim(Value);
+  if Value = '' then
+    Result := Default
+  else
+    try
+      Result := StrToInt(Value);
+    except
+      Result := Default;
+    end;
+end;
+
+function SafeColor(V: Variant; Default: TColor): TColor;
+var
+  s: String;
+begin
+  s := Trim(VarToStr(V));
+  if s = '' then begin Result := Default; Exit; end;
+  if s = 'clNone'  then begin Result := clNone;  Exit; end;
+  if s = 'clBlack' then begin Result := clBlack; Exit; end;
+  if s = 'clBlue'  then begin Result := clBlue;  Exit; end;
+  if s = 'clGray'  then begin Result := clGray;  Exit; end;
+  if s = 'clRed'   then begin Result := clRed;   Exit; end;
+  if s = 'clGreen' then begin Result := clGreen; Exit; end;
+  if s = 'clWhite' then begin Result := clWhite; Exit; end;
+  Result := StrToIntDef(s, Default);
+end;
+
+function GetPenStyle(StyleStr: String): TPenStyle;
+begin
+  if StyleStr = 'Пунктир' then Result := psDash
+  else if StyleStr = 'Точечная' then Result := psDot
+  else if StyleStr = 'Штрихпунктирная' then Result := psDashDot
+  else Result := psSolid;
+end;
+
+function GetParentContainer(PC: TdxPageControl; ViewType: TViewType): TWinControl;
+begin
+  Result := PC.Parent;
+  if (ViewType in [vtGridOnly, vtWithoutGrid]) and (Result <> nil) and
+     (Result.Parent is TScrollBox) then
+    Result := Result.Parent;
+end;
+
+procedure GetPageControlScreenPosition(PC: TdxPageControl; var X, Y: Integer);
+var
+  TempControl: TControl;
+begin
+  X := PC.Left;
+  Y := PC.Top;
+
+  TempControl := PC.Parent;
+  while TempControl <> nil do
+  begin
+    X := X + TempControl.Left;
+    Y := Y + TempControl.Top;
+    TempControl := TempControl.Parent;
+  end;
+end;
+
+procedure ApplyWrappedText(LabelObj: TLabel; OriginalText: string; MaxWidth: Integer; Canvas: TCanvas);
+var
+  Words: TStringList;
+  i: Integer;
+  Line, TestLine: string;
+  ResultText: string;
+begin
+  if MaxWidth <= 0 then
+  begin
+    LabelObj.Caption := OriginalText;
+    Exit;
+  end;
+
+  Words := TStringList.Create;
+  Words.Delimiter := ' ';
+  Words.DelimitedText := OriginalText;
+
+  Line := '';
+  ResultText := '';
+
+  for i := 0 to Words.Count - 1 do
+  begin
+    TestLine := Line;
+    if TestLine <> '' then TestLine := TestLine + ' ';
+    TestLine := TestLine + Words[i];
+
+    if Canvas.TextWidth(TestLine) <= MaxWidth then
+      Line := TestLine
+    else
+    begin
+      if ResultText <> '' then ResultText := ResultText + #13#10;
+      ResultText := ResultText + Line;
+      Line := Words[i];
+    end;
+  end;
+
+  if Line <> '' then
+  begin
+    if ResultText <> '' then ResultText := ResultText + #13#10;
+    ResultText := ResultText + Line;
+  end;
+
+  LabelObj.Caption := ResultText;
+  Words.Free;
+end;
+
+// -----------------------------------------------------------------------------
+// ПОИСК ПО МАССИВУ
+// -----------------------------------------------------------------------------
+
+function QT_GetIndexByLabel(LabelObj: TLabel; var LabelIdx: Integer): Integer;
+var
+  i, j: Integer;
+begin
+  Result := -1;
+  LabelIdx := -1;
+  for i := 0 to High(QTArr) do
+    for j := 0 to High(QTArr[i].Lb) do
+      if QTArr[i].Lb[j] = LabelObj then
+      begin
+        Result := i;
+        LabelIdx := j;
+        Exit;
+      end;
+end;
+
+function QT_GetIndexByForm(Form: TdxForm): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to High(QTArr) do
+    if QTArr[i].selfT = Form then
+    begin
+      Result := i;
+      Exit;
+    end;
+end;
+
+// -----------------------------------------------------------------------------
+// РАЗДЕЛИТЕЛЬНАЯ ЛИНИЯ
+// -----------------------------------------------------------------------------
+
+procedure CreateSeparatorLine(var QT: TQTData);
+var
+  ParentContainer: TWinControl;
+begin
+  if QT.PC = nil then Exit;
+
+  if QT.SeparatorLine <> nil then
+  begin
+    QT.SeparatorLine.Free;
+    QT.SeparatorLine := nil;
+  end;
+
+  ParentContainer := GetParentContainer(QT.PC, QT.FormViewType);
+
+  if QT.Orientation = 'Вертикальная' then
+    QT.SeparatorOffset := QT.PCLeft + QT.SeparatorOffsetValue + QT.SeparatorWidth + QT.SeparatorMarginValue
+  else
+    QT.SeparatorOffset := QT.PCTop + QT.SeparatorOffsetValue + QT.SeparatorWidth + QT.SeparatorMarginValue;
+
+  QT.SeparatorLine := TShape.Create(QT.selfT);
+  QT.SeparatorLine.Parent := ParentContainer;
+
+  if QT.Orientation = 'Вертикальная' then
+  begin
+    QT.SeparatorLine.Left := QT.PCLeft + QT.SeparatorOffsetValue;
+    QT.SeparatorLine.Top := QT.PCTop;
+    QT.SeparatorLine.Width := QT.SeparatorWidth;
+    QT.SeparatorLine.Height := QT.PC.Height;
+  end
+  else
+  begin
+    QT.SeparatorLine.Top := QT.PCTop + QT.SeparatorOffsetValue;
+    QT.SeparatorLine.Left := QT.PCLeft;
+    QT.SeparatorLine.Width := QT.PC.Width;
+    QT.SeparatorLine.Height := QT.SeparatorWidth;
+  end;
+
+  QT.SeparatorLine.Brush.Style := bsClear;
+  QT.SeparatorLine.Pen.Color := QT.SeparatorColor;
+  QT.SeparatorLine.Pen.Style := GetPenStyle(QT.SeparatorStyle);
+  QT.SeparatorLine.Pen.Width := QT.SeparatorWidth;
+
+  if not QT.ShowSeparator then
+  begin
+    QT.SeparatorLine.Pen.Color := clNone;
+    QT.SeparatorLine.Visible := False;
+  end
+  else
+    QT.SeparatorLine.Visible := True;
+end;
+
+// -----------------------------------------------------------------------------
+// ОБНОВЛЕНИЕ АКТИВНОЙ ЗАКЛАДКИ
+// -----------------------------------------------------------------------------
+
+procedure UpdateActiveTabComponents(var QT: TQTData; TabIndex: Integer);
+var
+  j: Integer;
+  o: TComponent;
+  s: String;
+  NewParent: TWinControl;
+  TempStr: string;
+begin
+  if QT.PC = nil then Exit;
+  if (TabIndex < 0) or (TabIndex >= QT.PC.PageCount) then Exit;
+
+  s := QT.PC.Name;
+  NewParent := GetParentContainer(QT.PC, QT.FormViewType);
+
+  for j := 0 to QT.selfT.ComponentCount - 1 do
+  begin
+    if j < Length(QT.ArrSS) then
+    begin
+      try
+        TempStr := VarToStr(QT.ArrSS[j]);
+      except
+        TempStr := '';
+      end;
+
+      if TempStr = s then
+      begin
+        o := QT.selfT.Components[j];
+        if (o <> nil) and (o is TControl) then
+        begin
+          if TControl(o).Parent <> nil then
+          begin
+            try
+              TempStr := VarToStr(QT.ArrS[j]);
+            except
+              TempStr := '';
+            end;
+
+            if (QT.PC.Pages[TabIndex] <> nil) and
+               (TControl(o).Parent.Name = QT.PC.Pages[TabIndex].Name) then
+            begin
+              if QT.Orientation = 'Вертикальная' then
+                TControl(o).Left := QT.SeparatorOffset + QT.ArrL[j]
+              else
+                TControl(o).Top := QT.SeparatorOffset + QT.ArrT[j] + 10;
+              TControl(o).Parent := NewParent;
+            end
+            else
+            begin
+              if TempStr <> '' then
+              begin
+                if QT.selfT.FindComponent(TempStr) <> nil then
+                  TControl(o).Parent := TdxTabSheet(QT.selfT.FindComponent(TempStr));
+              end;
+              TControl(o).Left := QT.ArrL[j];
+              TControl(o).Top := QT.ArrT[j];
+            end;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// ОБРАБОТЧИКИ МЫШИ
+// -----------------------------------------------------------------------------
+
+procedure lbl_OnMouseEnter(Sender: TObject);
+var
+  i, idx: Integer;
+  QT: TQTData;
+begin
+  try
+    i := QT_GetIndexByLabel(TLabel(Sender), idx);
+    if (i >= 0) and (idx >= 0) and (idx < Length(QTArr[i].Lb)) and
+       (QTArr[i].Lb[idx] <> nil) then
+    begin
+      QT := QTArr[i];
+
+      if (QT.Animation = 'Увеличение шрифта') or (QT.Animation = 'Увеличение + жирный') then
+        QT.Lb[idx].Font.Size := QT.FontSize + 2;
+
+      if (QT.Animation = 'Жирный шрифт') or (QT.Animation = 'Увеличение + жирный') then
+        QT.Lb[idx].Font.Style := QT.Lb[idx].Font.Style + [fsBold];
+
+      QT.Lb[idx].Font.Color := QT.HoverColor;
+    end;
+  except
+    Debug('CustomizationBookmark: lbl_OnMouseEnter');
+  end;
+end;
+
+procedure lbl_OnMouseLeave(Sender: TObject);
+var
+  i, idx: Integer;
+  QT: TQTData;
+begin
+  try
+    i := QT_GetIndexByLabel(TLabel(Sender), idx);
+    if (i >= 0) and (idx >= 0) and (idx < Length(QTArr[i].Lb)) and
+       (QTArr[i].Lb[idx] <> nil) then
+    begin
+      QT := QTArr[i];
+
+      QT.Lb[idx].Font.Size := QT.NormalFontSize;
+      QT.Lb[idx].Font.Style := QT.Lb[idx].Font.Style - [fsBold];
+      QT.Lb[idx].Font.Color := QT.FontColor;
+    end;
+  except
+    Debug('CustomizationBookmark: lbl_OnMouseLeave');
+  end;
+end;
+
+procedure LbClick(Sender: TObject);
+var
+  i, j, TabIndex: Integer;
+  QT: TQTData;
+begin
+  try
+    i := QT_GetIndexByLabel(TLabel(Sender), TabIndex);
+    if i < 0 then Exit;
+    if TabIndex < 0 then Exit;
+
+    QT := QTArr[i];
+    if QT.PC = nil then Exit;
+    if TabIndex >= QT.PC.PageCount then Exit;
+    if not QT.LastTabVisible[TabIndex] then Exit;
+
+    if QT.PC.ActivePageIndex = TabIndex then
+    begin
+      if QT.HideOnSecondClick then
+      begin
+        QT.PC.ActivePageIndex := -1;
+        if QT.EnableUnderline then
+          for j := 0 to High(QT.Lb) do
+            if QT.Lb[j] <> nil then
+              QT.Lb[j].Font.Style := QT.Lb[j].Font.Style - [fsUnderline];
+      end;
+      Exit;
+    end;
+
+    QT.PC.ActivePageIndex := TabIndex;
+    UpdateActiveTabComponents(QT, TabIndex);
+
+    if QT.EnableUnderline then
+    begin
+      for j := 0 to High(QT.Lb) do
+        if QT.Lb[j] <> nil then
+          if j = TabIndex then
+            QT.Lb[j].Font.Style := QT.Lb[j].Font.Style + [fsUnderline]
+          else
+            QT.Lb[j].Font.Style := QT.Lb[j].Font.Style - [fsUnderline];
+    end;
+  except
+    Debug('CustomizationBookmark: LbClick');
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// AFTER SCROLL (со Skip-флагом)
+// -----------------------------------------------------------------------------
+
+procedure AfterScrollHandler(Sender: TObject);
+var
+  i: Integer;
+  QT: TQTData;
+begin
+  i := QT_GetIndexByForm(TdxForm(Sender));
+  if i < 0 then Exit;
+
+  QT := QTArr[i];
+  if QT.Skip then Exit;
+
+  if QT.OnAfterScrollselfT <> nil then
+  try
+    QT.Skip := True;
+    QT.OnAfterScrollselfT(Sender);
+  finally
+    QT.Skip := False;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// SHOW / BEFORECLOSE / DBCLOSE / ONCREATEFORM
+// -----------------------------------------------------------------------------
+
+procedure QT_Show(Sender: TObject);
+var
+  i: Integer;
+  QT: TQTData;
+begin
+  try
+    i := QT_GetIndexByForm(TEditWindow(Sender).Form);
+    if i >= 0 then
+    begin
+      QT := QTArr[i];
+      if QT.QT_OnShow <> nil then QT.QT_OnShow(Sender);
+    end;
+  except
+    Debug('CustomizationBookmark: QT_Show');
+  end;
+end;
+
+procedure QT_BefCl(Sender: TObject);
+var
+  i: Integer;
+  QT: TQTData;
+begin
+  if Length(QTArr) > 0 then
+  try
+    i := QT_GetIndexByForm(TdxForm(Sender));
+    if i >= 0 then
+    begin
+      QT := QTArr[i];
+      if QT.PC <> nil then
+        QT.PC.Visible := True;
+      if QT.SeparatorLine <> nil then
+        QT.SeparatorLine.Visible := False;
+      if QT.OnBefCl <> nil then QT.OnBefCl(Sender);
+    end;
+  except
+    Debug('CustomizationBookmark: QT_BefCl');
+  end;
+end;
+
+procedure QT_DBClose(Sender: TObject);
+var
+  i: Integer;
+begin
+  for i := 0 to High(QTArr) do
+  begin
+    QTArr[i].SeparatorLine := nil;
+    SetLength(QTArr[i].Lb, 0);
+  end;
+  SetLength(QTArr, 0);
+
+  if MainWindow_OldOnDataBaseClose_CB <> nil then
+    MainWindow_OldOnDataBaseClose_CB(Sender);
+end;
+
+procedure GlobalOnCreateForm(Sender: TObject; Form: TdxForm);
+begin
+  if MainWindow_OldOnCreateForm_CB <> nil then
+    MainWindow_OldOnCreateForm_CB(Sender, Form);
+end;
+
+// -----------------------------------------------------------------------------
+// ОСНОВНАЯ ПРОЦЕДУРА
+// -----------------------------------------------------------------------------
+
+procedure CustomizationBookmark(
+  dxP2: string;
+  TabsGrid: TVariantArray2d;
+  FontSize: string;
+  FontColor: TColor;
+  HoverColor: TColor;
+  Orientation: string;
+  Animation: string;
+  EnableUnderline: Integer;
+  MaxWidth: string;
+  ShowSeparator: Integer;
+  SeparatorColor: TColor;
+  SeparatorStyle: string;
+  SeparatorWidth: string;
+  SeparatorOffset: string;
+  SeparatorMargin: string;
+  HideOnSecondClick: Integer
+);
+var
+  n, i, k: Integer;
+  QT: TQTData;
+  o: TComponent;
+  ActiveIndex: Integer;
+  GridValue: String;
+  ParentContainer: TWinControl;
+begin
+  // --- Защита от блокировки ---
+  if nz(MainWindow.Params['BlockALLModules'], false) then Exit;
+  if nz(self.Params['BlockALLModules'], false) then Exit;
+
+  if MainWindow = nil then Exit;
+  if MainWindow.Canvas = nil then Exit;
+
+  // --- Защита от повторного вызова на ту же форму ---
+  if self.Params.ParamExists('tagb') then Exit;
+  if QT_GetIndexByForm(self) >= 0 then Exit;
+
+  // --- Инициализация структуры QT ---
+  QT.FontSize := 0;
+  QT.NormalFontSize := 0;
+  QT.FontColor := 0;
+  QT.HoverColor := 0;
+  QT.Spacing := 0;
+  QT.Initialized := False;
+  QT.Orientation := '';
+  QT.MaxWidth := 0;
+  QT.Animation := '';
+  QT.EnableUnderline := False;
+  QT.HideOnSecondClick := False;
+  QT.ShowSeparator := False;
+  QT.SeparatorColor := 0;
+  QT.SeparatorStyle := '';
+  QT.SeparatorWidth := 0;
+  QT.SeparatorOffsetValue := 0;
+  QT.SeparatorMarginValue := 0;
+  QT.SeparatorOffset := 0;
+  QT.FormViewType := vtDefault;
+  QT.PCLeft := 0;
+  QT.PCTop := 0;
+  QT.Skip := False;
+  QT.SeparatorLine := nil;
+
+  QT.selfT := self;
+  QT.FormViewType := self.ViewType;
+
+  QT.PC := TdxPageControl(self.FindComponent(dxP2));
+  if QT.PC = nil then Exit;
+  if QT.PC.Parent = nil then Exit;
+
+  GetPageControlScreenPosition(QT.PC, QT.PCLeft, QT.PCTop);
+
+  ParentContainer := GetParentContainer(QT.PC, QT.FormViewType);
+
+  QT.FontSize := SafeStrToInt(FontSize, self.Font.Size);
+  if QT.FontSize <= 0 then QT.FontSize := self.Font.Size;
+  QT.NormalFontSize := QT.FontSize;
+  QT.FontColor := FontColor;
+  QT.HoverColor := HoverColor;
+
+  QT.Orientation := Orientation;
+  QT.MaxWidth := SafeStrToInt(MaxWidth, 0);
+  QT.Animation := Animation;
+  QT.EnableUnderline := (EnableUnderline = 1);
+  QT.HideOnSecondClick := (HideOnSecondClick = 1);
+
+  QT.ShowSeparator := (ShowSeparator = 1);
+  QT.SeparatorColor := SeparatorColor;
+  QT.SeparatorStyle := SeparatorStyle;
+  QT.SeparatorWidth := SafeStrToInt(SeparatorWidth, 1);
+  if QT.SeparatorWidth <= 0 then QT.SeparatorWidth := 1;
+  QT.SeparatorOffsetValue := SafeStrToInt(SeparatorOffset, 30);
+  if QT.SeparatorOffsetValue < 0 then QT.SeparatorOffsetValue := 30;
+  QT.SeparatorMarginValue := SafeStrToInt(SeparatorMargin, 10);
+  if QT.SeparatorMarginValue < 0 then QT.SeparatorMarginValue := 10;
+
+  ActiveIndex := QT.PC.ActivePageIndex;
+
+  MainWindow.Canvas.Font.Assign(self.Font);
+  if QT.FontSize > 0 then
+    MainWindow.Canvas.Font.Size := QT.FontSize;
+
+  // --- Сохраняем позиции и родителей компонентов ---
+  SetLength(QT.ArrS, self.ComponentCount);
+  SetLength(QT.ArrSS, self.ComponentCount);
+  SetLength(QT.ArrL, self.ComponentCount);
+  SetLength(QT.ArrT, self.ComponentCount);
+
+  for i := 0 to self.ComponentCount - 1 do
+  begin
+    o := self.Components[i];
+    QT.ArrS[i] := '';
+    QT.ArrSS[i] := '';
+    QT.ArrL[i] := 0;
+    QT.ArrT[i] := 0;
+    if o is TControl then
+    begin
+      if TControl(o).Parent <> nil then
+      begin
+        QT.ArrS[i] := TControl(o).Parent.Name;
+        QT.ArrSS[i] := '';
+        if TControl(o).Parent.Parent <> nil then
+          QT.ArrSS[i] := TControl(o).Parent.Parent.Name;
+      end;
+      QT.ArrL[i] := TControl(o).Left;
+      QT.ArrT[i] := TControl(o).Top;
+    end;
+  end;
+
+  // --- Таблица закладок ---
+  SetLength(QT.Lb, QT.PC.PageCount);
+  SetLength(QT.LastTabVisible, QT.PC.PageCount);
+  SetLength(QT.LastTabCaption, QT.PC.PageCount);
+  SetLength(QT.LeftMargins, QT.PC.PageCount);
+  SetLength(QT.RightMargins, QT.PC.PageCount);
+
+  for i := 0 to QT.PC.PageCount - 1 do
+  begin
+    QT.LastTabCaption[i] := QT.PC.Pages[i].Caption;
+
+    if (i < Length(TabsGrid)) and (Length(TabsGrid[i]) >= 4) then
+    begin
+      try
+        GridValue := VarToStr(TabsGrid[i][0]);
+        QT.LastTabVisible[i] := (GridValue = '1') or (GridValue = 'True') or (GridValue = 'true');
+
+        GridValue := VarToStr(TabsGrid[i][2]);
+        QT.LeftMargins[i] := SafeStrToInt(GridValue, 0);
+
+        GridValue := VarToStr(TabsGrid[i][3]);
+        QT.RightMargins[i] := SafeStrToInt(GridValue, 0);
+      except
+        QT.LastTabVisible[i] := QT.PC.Pages[i].TabVisible;
+        QT.LeftMargins[i] := 0;
+        QT.RightMargins[i] := 0;
+      end;
+    end
+    else
+    begin
+      QT.LastTabVisible[i] := QT.PC.Pages[i].TabVisible;
+      QT.LeftMargins[i] := 0;
+      QT.RightMargins[i] := 0;
+    end;
+  end;
+
+  // --- Создание TLabel для каждой закладки ---
+  k := 0;
+  for i := 0 to QT.PC.PageCount - 1 do
+  begin
+    QT.Lb[i] := TLabel.Create(self);
+    QT.Lb[i].Tag := RandomB(10000, 9999999);
+    QT.Lb[i].Name := 'TLabel' + IntToStr(QT.Lb[i].Tag);
+    QT.Lb[i].Parent := ParentContainer;
+    QT.Lb[i].Font.Assign(self.Font);
+    if QT.FontSize > 0 then
+      QT.Lb[i].Font.Size := QT.FontSize;
+    QT.Lb[i].Font.Color := QT.FontColor;
+    QT.Lb[i].OnClick := @LbClick;
+    QT.Lb[i].OnMouseEnter := @lbl_OnMouseEnter;
+    QT.Lb[i].OnMouseLeave := @lbl_OnMouseLeave;
+
+    ApplyWrappedText(QT.Lb[i], QT.PC.Pages[i].Caption, QT.MaxWidth, MainWindow.Canvas);
+
+    QT.Lb[i].AutoSize := True;
+
+    if QT.Orientation = 'Вертикальная' then
+    begin
+      QT.Lb[i].Left := QT.PCLeft + QT.LeftMargins[i];
+      QT.Lb[i].Top := QT.PCTop + k;
+      k := k + QT.Lb[i].Height + QT.RightMargins[i];
+    end
+    else
+    begin
+      if i > 0 then
+        k := k + QT.Lb[i - 1].Width + QT.RightMargins[i - 1] + QT.LeftMargins[i];
+      QT.Lb[i].Left := QT.PCLeft + k + QT.LeftMargins[i];
+      QT.Lb[i].Top := QT.PCTop;
+    end;
+
+    QT.Lb[i].Visible := QT.LastTabVisible[i];
+  end;
+
+  CreateSeparatorLine(QT);
+
+  for i := 0 to QT.PC.PageCount - 1 do
+    QT.PC.Pages[i].TabVisible := False;
+  QT.PC.Visible := False;
+
+  self.Params['tagb'] := RandomB(10000, 9999999);
+
+  if (MainWindow.FindComponent('DesignFr') <> nil) or (self.ViewType = vtGridOnly) then
+  begin
+    if self.EditWindow <> nil then
+    begin
+      QT.QT_OnShow := self.EditWindow.OnShow;
+      self.EditWindow.OnShow := @QT_Show;
+    end;
+  end;
+
+  QT.OnAfterScrollselfT := self.OnAfterScroll;
+  self.OnAfterScroll := @AfterScrollHandler;
+
+  QT.OnBefCl := self.OnBeforeClose;
+  self.OnBeforeClose := @QT_BefCl;
+
+  QT.Initialized := True;
+
+  n := Length(QTArr);
+  if n = 0 then
+  begin
+    MainWindow_OldOnCreateForm_CB := MainWindow.OnCreateForm;
+    MainWindow.OnCreateForm := @GlobalOnCreateForm;
+
+    MainWindow_OldOnDataBaseClose_CB := MainWindow.OnDataBaseClose;
+    MainWindow.OnDataBaseClose := @QT_DBClose;
+  end;
+
+  SetLength(QTArr, n + 1);
+  QTArr[n] := QT;
+
+  if ActiveIndex >= 0 then
+  begin
+    if QT.LastTabVisible[ActiveIndex] then
+    begin
+      UpdateActiveTabComponents(QT, ActiveIndex);
+      if QT.EnableUnderline then
+      begin
+        for i := 0 to High(QT.Lb) do
+          if QT.Lb[i] <> nil then
+            if i = ActiveIndex then
+              QT.Lb[i].Font.Style := QT.Lb[i].Font.Style + [fsUnderline]
+            else
+              QT.Lb[i].Font.Style := QT.Lb[i].Font.Style - [fsUnderline];
+      end;
+    end;
+  end;
+end;
