@@ -1,0 +1,1056 @@
+{@module
+author=kok80
+version=1.1
+description=Работа с шаблонами Word: подстановка значений из записи в основной текст,
+колонтитулы и элементы управления содержимым (в том числе привязанные к XML).
+Два действия:
+1. "Word: печать по шаблону" - самостоятельная печать из кнопки
+   (стандартную печать DataExpress для шаблона можно отключить).
+2. "Word: подстановка в колонтитулы и поля" - постобработка документа,
+   сформированного штатным шаблонизатором DataExpress.
+Для работы требуется установленный Microsoft Word. Технология OLE.
+@}
+
+{@action
+id=D2B3C4E5-0002-4E3C-9174-44124CE1F488
+target=button
+origname=WordPrintTemplate
+name=Word: печать по шаблону (все поля, колонтитулы, поля-контролы)
+group=Печать
+ui=<ui>
+  <template name="tpl" caption="Шаблон Word" required="1"/>
+  <divider caption="Результат"/>
+  <text name="outname" caption="Имя файла результата" texthint="Может содержать [Имена полей], например: [Номер] от [Дата]. Пусто = имя шаблона"/>
+  <folder name="outfolder" caption="Папка для сохранения" texthint="Пусто = папка шаблонов"/>
+  <divider caption="Где подставлять значения"/>
+  <checkbox name="inheaders" caption="Колонтитулы (все секции)" defaultvalue="1"/>
+  <checkbox name="incontrols" caption="Элементы управления содержимым (в т.ч. привязанные к XML)" defaultvalue="1"/>
+  <divider caption="Завершение"/>
+  <checkbox name="openafter" caption="Открыть документ после формирования" defaultvalue="1"/>
+</ui>
+description=Формирует документ Word из шаблона и подставляет значения текущей записи
+во ВСЁ, включая то, что штатный шаблонизатор DataExpress не обрабатывает:
+колонтитулы всех секций и элементы управления содержимым (content controls),
+в том числе привязанные к custom XML.<br><br>
+<b>Метки</b> — обычные маркеры DX: <code>[Имя поля]</code>. Размещайте их в тексте,
+в колонтитулах и внутри элементов управления содержимым — расширение найдет и
+заменит их значениями текущей записи.<br><br>
+<b>Имя файла результата</b> может содержать поля, например:
+<code>[Номер] от [Дата]</code>. Если пусто — берется имя шаблона.<br><br>
+<b>Папка для сохранения</b> — пусто = папка шаблонов.<br><br>
+Действие вызывается из кнопки на форме (стандартную печать DX для этого шаблона
+можно отключить). Требуется установленный Microsoft Word.
+@}
+
+{@action
+id=C1A2B3D4-0001-4E3C-9174-44124CE1F488
+target=form
+origname=WordReplaceInHeaders
+name=Word: подстановка в XML-поля после печати DX (быстрый режим)
+group=Печать
+ui=<ui>
+  <template name="tpl" caption="Шаблон документа" required="1"/>
+  <checkbox name="inheaders" caption="Колонтитулы (все секции)" defaultvalue="1"/>
+  <checkbox name="savedoc" caption="Сохранить документ"/>
+  <checkbox name="finish" caption="Конец обработки" defaultvalue="1"/>
+</ui>
+description=Постобработка документа Word, сформированного штатным шаблонизатором
+DataExpress: подставляет значения из записи в элементы управления содержимым,
+привязанные к custom XML (в основном тексте и в колонтитулах всех секций).
+Штатный механизм DX эти элементы не обрабатывает — это дополнение решает проблему.<br><br>
+<b>Как использовать:</b> в шаблоне Word создайте элементы управления содержимым
+(Разработчик -> Элемент управления содержимым), привяжите их к custom XML
+(XML-область сопоставления) и поместите внутрь обычные метки DX:
+<code>[Имя поля]</code>, <code>[!Объект|Поле]</code>, <code>%%Поле%%</code>.
+Расширение заменит их значениями текущей записи прямо в XML-узлах.<br><br>
+Действие добавляется в действия формы при открытии; для каждого шаблона —
+отдельное действие. Флажок «Конец обработки» ставится на последнем действии.
+Требуется установленный Microsoft Word.
+@}
+
+procedure Sleep(MSec: LongInt); external 'Sleep@kernel32.dll stdcall delayload';
+function GetTickCount: LongInt; external 'GetTickCount@kernel32.dll stdcall delayload';
+
+type
+  // данные постобработки (действие 2)
+  TWordPostData = record
+    Fm: TdxForm;
+    PrintEvent: TPrintEvent;
+    DestroyEvent: TNotifyEvent;
+    TplName: String;
+    InHeaders, SaveDoc, Finish: Boolean;
+    Skip: Boolean;
+  end;
+
+var
+  WordPostArr: array of TWordPostData;
+  ProgressWnd: TForm;
+  PostDoc: Variant;           // документ для постобработки
+  PostTemplateName: String;
+  PostProcessPrint: Boolean;
+
+
+// -----------------------------------------------------------------------------
+// ОКНО ПРОГРЕССА
+// -----------------------------------------------------------------------------
+
+procedure ShowProgress(const Msg: String);
+var
+  Sh: TShape;
+  L: TLabel;
+begin
+  ProgressWnd := TForm.Create(nil);
+  with ProgressWnd do
+  begin
+    BorderStyle := bsNone;
+    Position := poOwnerFormCenter;
+    Width := 260; Height := 100;
+    Sh := TShape.Create(ProgressWnd);
+    Sh.Brush.Style := bsClear;
+    Sh.Align := alClient;
+    Sh.Parent := ProgressWnd;
+    L := TLabel.Create(ProgressWnd);
+    L.AutoSize := False;
+    L.Alignment := taCenter;
+    L.Layout := tlCenter;
+    L.Align := alClient;
+    L.Caption := Msg;
+    L.Parent := ProgressWnd;
+    Show;
+    Application.ProcessMessages;
+  end;
+end;
+
+procedure CloseProgress;
+begin
+  if ProgressWnd <> nil then
+  begin
+    ProgressWnd.Free;
+    ProgressWnd := nil;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// WORD: ПОДКЛЮЧЕНИЕ
+// -----------------------------------------------------------------------------
+
+function GetWordApp(AttempsCount: Integer): Variant;
+var
+  i: Integer;
+begin
+  Result := Null;
+  for i := 1 to AttempsCount do
+    try
+      Result := GetActiveOleObject('Word.Application');
+      Exit;
+    except
+      if i < AttempsCount then Sleep(500);
+    end;
+end;
+
+function GetActiveDocument(WordApp: Variant; const FileName: String): Variant;
+var
+  i: Integer;
+  D: Variant;
+begin
+  Result := Null;
+  for i := 1 to WordApp.Documents.Count do
+  begin
+    D := WordApp.Documents[i];
+    if Utf8CompareText(D.FullName, FileName) = 0 then
+    begin
+      Result := D;
+      Exit;
+    end;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// WORD: ЗАМЕНЫ
+// -----------------------------------------------------------------------------
+
+// заменяет все вхождения маркера в строке (для XML-узлов и текстов контролов)
+function StrReplaceAll(const S, Marker, Value: String): String;
+var
+  p: Integer;
+begin
+  Result := S;
+  if Marker = '' then Exit;
+  p := Pos(Marker, Result);
+  while p > 0 do
+  begin
+    Result := Copy(Result, 1, p - 1) + Value + Copy(Result, p + Length(Marker), Length(Result));
+    p := Pos(Marker, Result);
+  end;
+end;
+
+// заменяет маркер во всем диапазоне Word (Find/ReplaceAll)
+procedure ReplaceInRange(Rng: Variant; const Marker, Value: String);
+begin
+  if Marker = '' then Exit;
+  try
+    // MatchCase=False, FindContinued=1(wdFindContinue), ReplaceAll=2 (wdReplaceAll)
+    Rng.Find.Execute(Marker, False, False, False, False, False,
+      True, 1, False, Value, 2);
+  except
+    // ошибка замены в конкретном диапазоне не должна останавливать обработку
+  end;
+end;
+
+// заполняет content controls в диапазоне: заменяет метки внутри их текста/XML.
+// ByTitle - метка сравнивается с Title/Tag элемента (постобработка),
+// иначе метка ищется внутри текста элемента (печать по шаблону)
+procedure FillContentControls(Rng: Variant; const Marker, Value: String; ByTitle: Boolean);
+var
+  i, n: Integer;
+  Ctrl, NodeText: Variant;
+begin
+  if Marker = '' then Exit;
+  try
+    n := Rng.ContentControls.Count;
+    for i := 1 to n do
+    begin
+      Ctrl := Rng.ContentControls.Item(i);
+      if ByTitle and (Utf8CompareText(Ctrl.Title, Marker) <> 0) and
+         (Utf8CompareText(Ctrl.Tag, Marker) <> 0) then
+        Continue;
+      try
+        // элемент привязан к custom XML — меняем текст XML-узла
+        if Ctrl.XMLMapping.IsMapped then
+        begin
+          if ByTitle then
+            Ctrl.XMLMapping.CustomXMLNode.Text := Value
+          else
+          begin
+            NodeText := Ctrl.XMLMapping.CustomXMLNode.Text;
+            if Pos(Marker, NodeText) > 0 then
+              Ctrl.XMLMapping.CustomXMLNode.Text := StrReplaceAll(NodeText, Marker, Value);
+          end;
+        end
+        else
+        begin
+          if ByTitle then
+            Ctrl.Range.Text := Value
+          else
+          begin
+            if Pos(Marker, Ctrl.Range.Text) > 0 then
+              Ctrl.Range.Text := StrReplaceAll(Ctrl.Range.Text, Marker, Value);
+          end;
+        end;
+      except
+        // запасной вариант: прямо в текст элемента
+        try
+          if ByTitle then
+            Ctrl.Range.Text := Value
+          else
+          begin
+            if Pos(Marker, Ctrl.Range.Text) > 0 then
+              Ctrl.Range.Text := StrReplaceAll(Ctrl.Range.Text, Marker, Value);
+          end;
+        except
+        end;
+      end;
+    end;
+  except
+    // контролов в диапазоне нет — пропускаем
+  end;
+end;
+
+procedure FillCCInAllHeaders(Doc: Variant; const Marker, Value: String; ByTitle: Boolean); forward;
+
+var
+  // кэш текстовых диапазонов документа (собирается один раз перед заменами)
+  CachedRanges: array of Variant;
+
+procedure AddCachedRange(R: Variant);
+begin
+  SetLength(CachedRanges, Length(CachedRanges) + 1);
+  CachedRanges[High(CachedRanges)] := R;
+end;
+
+// собирает текстовые диапазоны фигур (в т.ч. внутри групп)
+procedure CollectShapeRanges(Shapes: Variant);
+var
+  i, n: Integer;
+  Shp: Variant;
+begin
+  try
+    n := Shapes.Count;
+  except
+    Exit;
+  end;
+  for i := 1 to n do
+  begin
+    try
+      Shp := Shapes.Item(i);
+      try
+        if Shp.TextFrame.HasText then
+          AddCachedRange(Shp.TextFrame.TextRange);
+      except
+      end;
+      // вложенные фигуры группы (один уровень)
+      try
+        CollectShapeRanges(Shp.GroupItems);
+      except
+      end;
+    except
+    end;
+  end;
+end;
+
+// собирает все текстовые диапазоны документа: тело, фигуры, колонтитулы
+procedure CollectDocRanges(Doc: Variant; InHeaders: Boolean);
+var
+  s, h: Integer;
+  Sec: Variant;
+begin
+  SetLength(CachedRanges, 0);
+
+  // основной текст
+  AddCachedRange(Doc.Content);
+  CollectShapeRanges(Doc.Shapes);
+
+  // колонтитулы всех секций (текст + фигуры)
+  if InHeaders then
+    for s := 1 to Doc.Sections.Count do
+    begin
+      Sec := Doc.Sections.Item(s);
+      for h := 1 to 3 do
+      begin
+        AddCachedRange(Sec.Headers.Item(h).Range);
+        AddCachedRange(Sec.Footers.Item(h).Range);
+        CollectShapeRanges(Sec.Headers.Item(h).Shapes);
+        CollectShapeRanges(Sec.Footers.Item(h).Shapes);
+      end;
+    end;
+end;
+
+// заменяет одиночный маркер во всех закэшированных диапазонах
+procedure ReplaceCached(const Marker, Value: String);
+var
+  r: Integer;
+begin
+  for r := 0 to High(CachedRanges) do
+    ReplaceInRange(CachedRanges[r], Marker, Value);
+end;
+
+// заменяет одиночный маркер в колонтитулах всех секций (для постобработки и печати из кнопки)
+procedure ReplaceMarkerInAllHeaders(Doc: Variant; const Marker, Value: String);
+var
+  s, h: Integer;
+  Sec: Variant;
+begin
+  for s := 1 to Doc.Sections.Count do
+  begin
+    Sec := Doc.Sections.Item(s);
+    for h := 1 to 3 do
+      ReplaceInRange(Sec.Headers.Item(h).Range, Marker, Value);
+  end;
+end;
+
+// заменяет маркер во всех зонах документа (по кэшу диапазонов + контролы)
+procedure ReplaceEverywhere(Doc: Variant; const Marker, Value: String;
+  InHeaders, InControls: Boolean);
+begin
+  ReplaceCached(Marker, Value);
+
+  // --- элементы управления содержимым (метки внутри текста/XML) ---
+  if InControls then
+  begin
+    FillContentControls(Doc.Content, Marker, Value, False);
+    if InHeaders then
+      FillCCInAllHeaders(Doc, Marker, Value, False);
+  end;
+end;
+
+// заменяет маркер в content controls колонтитулов всех секций
+procedure FillCCInAllHeaders(Doc: Variant; const Marker, Value: String; ByTitle: Boolean);
+var
+  s, h: Integer;
+  Sec: Variant;
+begin
+  for s := 1 to Doc.Sections.Count do
+  begin
+    Sec := Doc.Sections.Item(s);
+    for h := 1 to 3 do
+    begin
+      FillContentControls(Sec.Headers.Item(h).Range, Marker, Value, ByTitle);
+      FillContentControls(Sec.Footers.Item(h).Range, Marker, Value, ByTitle);
+    end;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// ДЕЙСТВИЕ 1: ПЕЧАТЬ ПО ШАБЛОНУ (кнопка)
+// -----------------------------------------------------------------------------
+
+// получает слово-текст компонента (для объектов показывает отображаемое значение)
+function GetComponentDisplayValue(Fm: TdxForm; Cmp: TComponent; const FieldName: String): String;
+var
+  v: Variant;
+begin
+  Result := '';
+  try
+    if Cmp is TdxCheckBox then
+    begin
+      v := Fm[FieldName];
+      if VarType(v) = VarBoolean then
+      begin
+        if v then Result := 'Да' else Result := 'Нет';
+        Exit;
+      end;
+      if VarToStr(v) = '1' then Result := 'Да' else Result := 'Нет';
+      Exit;
+    end;
+    if Cmp is TdxLookupComboBox then
+    begin
+      try
+        Result := TdxLookupComboBox(Cmp).Text;
+      except
+        Result := VarToStr(Fm[FieldName]);
+      end;
+      Exit;
+    end;
+    Result := VarToStr(Fm[FieldName]);
+  except
+    Result := '';
+  end;
+end;
+
+// получает значение поля связанной записи объекта по его id (через SQL)
+function GetObjectFieldValue(const SourceFormName, FieldName: String; RecId: Integer): String;
+var
+  SQL: String;
+begin
+  Result := '';
+  if (RecId <= 0) or (FieldName = '') then Exit;
+  try
+    SQL := Format('select [%s] from [%s] where id=%d', [FieldName, SourceFormName, RecId]);
+    with TdxSQLQuery.Create(SQL) do
+    begin
+      Open;
+      if RecordCount > 0 then
+        Result := Field[0].AsString;
+      Free;
+    end;
+  except
+    Result := '';
+  end;
+end;
+
+// применяет словарь замен (маркер -> значение) к строке (для XML-узлов и контролов)
+// применяет словарь замен к строке (для текста XML-узлов)
+function ApplyDict(const S: String; Dict, DictVals: TStringList): String;
+var
+  j: Integer;
+begin
+  Result := S;
+  for j := 0 to Dict.Count - 1 do
+    if Pos(Dict[j], Result) > 0 then
+      Result := StrReplaceAll(Result, Dict[j], DictVals[j]);
+end;
+
+// один проход по content controls диапазона:
+// XML-привязанные — замена в XML-узле, обычные — в тексте контрола
+procedure FillXMLControls(Rng: Variant; Dict, DictVals: TStringList); forward;
+
+// рекурсивно обходит фигуры (в т.ч. внутри групп) и заполняет XML-контролы в них
+procedure FillXMLControlsInShapes(Shapes: Variant; Dict, DictVals: TStringList);
+var
+  i, n: Integer;
+  Shp: Variant;
+begin
+  try
+    n := Shapes.Count;
+  except
+    Exit;
+  end;
+  for i := 1 to n do
+  begin
+    try
+      Shp := Shapes.Item(i);
+      try
+        if Shp.TextFrame.HasText then
+          FillXMLControls(Shp.TextFrame.TextRange, Dict, DictVals);
+      except
+      end;
+      // вложенные фигуры группы (один уровень)
+      try
+        FillXMLControlsInShapes(Shp.GroupItems, Dict, DictVals);
+      except
+      end;
+    except
+    end;
+  end;
+end;
+
+procedure FillXMLControls(Rng: Variant; Dict, DictVals: TStringList);
+var
+  i, n: Integer;
+  Ctrl, NodeText, NewText: Variant;
+  Mapped, Changed: Boolean;
+  Title: String;
+begin
+  try
+    n := Rng.ContentControls.Count;
+    for i := 1 to n do
+    begin
+      Ctrl := Rng.ContentControls.Item(i);
+      Mapped := False;
+      Changed := False;
+      Title := '';
+      try Title := Ctrl.Title; except end;
+      try
+        Mapped := Ctrl.XMLMapping.IsMapped;
+      except
+        Mapped := False;
+      end;
+
+      if Mapped then
+      begin
+        // метки лежат в XML-узле — меняем узел
+        NodeText := Null;
+        try
+          NodeText := Ctrl.XMLMapping.CustomXMLNode.Text;
+          Debug('WPost: CC ' + IntToStr(i) + ' node text: ' + Copy(VarToStr(NodeText), 1, 80));
+          NewText := ApplyDict(NodeText, Dict, DictVals);
+          if NewText <> NodeText then
+          begin
+            Ctrl.XMLMapping.CustomXMLNode.Text := NewText;
+            Changed := True;
+          end;
+        except
+          Debug('WPost: CC ' + IntToStr(i) + ' XML-узел: ' + ExceptionToString(ExceptionType, ExceptionParam));
+        end;
+        // если через XML-узел не получилось — пробуем текстом контрола
+        if not Changed then
+        begin
+          try
+            NodeText := Ctrl.Range.Text;
+            NewText := ApplyDict(NodeText, Dict, DictVals);
+            if NewText <> NodeText then
+            begin
+              Ctrl.Range.Text := NewText;
+              Changed := True;
+            end;
+          except
+            Debug('WPost: CC ' + IntToStr(i) + ' Range.Text: ' + ExceptionToString(ExceptionType, ExceptionParam));
+          end;
+        end;
+      end
+      else
+      begin
+        // обычный (не привязанный) контрол — меняем его текст
+        try
+          NodeText := Ctrl.Range.Text;
+          NewText := ApplyDict(NodeText, Dict, DictVals);
+          if NewText <> NodeText then
+          begin
+            Ctrl.Range.Text := NewText;
+            Changed := True;
+          end;
+        except
+        end;
+      end;
+
+      if Changed then
+        Debug('WPost: контрол "' + Title + '" (mapped=' + IntToStr(integer(Mapped)) + ') — заменено')
+      else
+        Debug('WPost: контрол "' + Title + '" (mapped=' + IntToStr(integer(Mapped)) + ') — без замен, текст: ' +
+          Copy(VarToStr(NodeText), 1, 80));
+    end;
+  except
+    // контролов в диапазоне нет — пропускаем
+  end;
+end;
+
+// перебирает поля формы и объектов, заменяет маркеры в XML-привязанных
+// элементах управления содержимым (быстрый режим)
+// собирает словарь замен: маркер -> значение (из полей формы и объектов)
+// добавляет в словарь варианты маркеров поля объекта и поля связанной записи
+procedure AddObjectMarkers(Dict, DictVals: TStringList; const ObjName, SrcFieldName, Value: String);
+begin
+  Dict.Add('[' + ObjName + '|' + SrcFieldName + ']');
+  DictVals.Add(Value);
+  Dict.Add('[!' + ObjName + '|' + SrcFieldName + ']');
+  DictVals.Add(Value);
+  Dict.Add('%%' + ObjName + '|' + SrcFieldName + '%%');
+  DictVals.Add(Value);
+  // короткий вариант без имени объекта: %%Поле%% (значение из связанной записи)
+  Dict.Add('%%' + SrcFieldName + '%%');
+  DictVals.Add(Value);
+end;
+
+// собирает словарь замен: маркер -> значение (из полей формы и объектов)
+procedure BuildValueDict(Fm: TdxForm; Dict, DictVals: TStringList);
+var
+  x, y: Integer;
+  Cmp, SCmp: TComponent;
+  FN, FN2, Val, SVal, SrcFormName: String;
+  LCB: TdxLookupComboBox;
+  SrcFm: TdxForm;
+  SId: Integer;
+  ColNames: TStringList;
+  SQL: String;
+begin
+  // --- обычные поля записи: [Поле], [!Поле], %%Поле%% ---
+  for x := 0 to Fm.ComponentCount - 1 do
+  begin
+    Cmp := Fm.components[x];
+    if not (Cmp is TdxEdit) and not (Cmp is TdxMemo) and
+       not (Cmp is TdxComboBox) and not (Cmp is TdxCalcEdit) and
+       not (Cmp is TdxDateEdit) and not (Cmp is TdxTimeEdit) and
+       not (Cmp is TdxCheckBox) and not (Cmp is TdxLookupComboBox) and
+       not (Cmp is TdxObjectField) and not (Cmp is TdxCounter) and
+       not (Cmp is TdxRecordId) and not (Cmp is TdxFile) then
+      Continue;
+
+    FN := GetComponentFieldName(Cmp);
+    if FN = '' then Continue;
+
+    Val := GetComponentDisplayValue(Fm, Cmp, FN);
+
+    Dict.Add('[' + FN + ']');     DictVals.Add(Val);
+    Dict.Add('[!' + FN + ']');    DictVals.Add(Val);
+    Dict.Add('%%' + FN + '%%');   DictVals.Add(Val);
+  end;
+
+  // --- объект-выбрать (TdxLookupComboBox) и поле объекта (TdxObjectField) ---
+  for x := 0 to Fm.ComponentCount - 1 do
+  begin
+    Cmp := Fm.components[x];
+    if not (Cmp is TdxLookupComboBox) and not (Cmp is TdxObjectField) then
+      Continue;
+
+    FN := GetComponentFieldName(Cmp);
+    if FN = '' then Continue;
+
+    Application.ProcessMessages;
+
+    if Cmp is TdxLookupComboBox then
+    begin
+      LCB := TdxLookupComboBox(Cmp);
+      SrcFormName := LCB.SourceFormName;
+      SId := LCB.ID;
+    end
+    else
+    begin
+      // TdxObjectField: связь через компонент "объект-выбрать" (ObjID)
+      LCB := nil;
+      SrcFormName := '';
+      SId := 0;
+      try
+        SVal := IntToStr(TdxObjectField(Cmp).ObjID);
+        for y := 0 to Fm.ComponentCount - 1 do
+          if GetComponentId(Fm.components[y]) = StrToIntDef(SVal, -1) then
+          begin
+            LCB := TdxLookupComboBox(Fm.components[y]);
+            Break;
+          end;
+        if LCB <> nil then
+        begin
+          SrcFormName := LCB.SourceFormName;
+          SId := LCB.ID;
+        end;
+      except
+        LCB := nil;
+      end;
+    end;
+
+    // значение самого объекта (отображаемый текст)
+    SVal := GetComponentDisplayValue(Fm, Cmp, FN);
+    Dict.Add('[' + FN + ']');     DictVals.Add(SVal);
+    Dict.Add('[!' + FN + ']');    DictVals.Add(SVal);
+    Dict.Add('%%' + FN + '%%');   DictVals.Add(SVal);
+
+    Debug('WPrint dict: объект [' + FN + '] source=' + SrcFormName + ' id=' + IntToStr(SId));
+
+    if (Trim(SrcFormName) = '') or (SId <= 0) then
+      Continue;
+
+    SrcFm := nil;
+    try
+      SrcFm := Fm.Forms[SrcFormName];
+    except
+      SrcFm := nil;
+    end;
+    if SrcFm = nil then
+    begin
+      Debug('WPrint dict: связанная форма не найдена: ' + SrcFormName);
+      Continue;
+    end;
+
+    // собираем имена полей связанной формы (без дублей)
+    ColNames := TStringList.Create;
+    try
+      for y := 0 to SrcFm.ComponentCount - 1 do
+      begin
+        SCmp := SrcFm.components[y];
+        if not (SCmp is TdxEdit) and not (SCmp is TdxMemo) and
+           not (SCmp is TdxComboBox) and not (SCmp is TdxCalcEdit) and
+           not (SCmp is TdxDateEdit) and not (SCmp is TdxTimeEdit) and
+           not (SCmp is TdxCheckBox) and not (SCmp is TdxLookupComboBox) and
+           not (SCmp is TdxObjectField) and not (SCmp is TdxCounter) and
+           not (SCmp is TdxRecordId) and not (SCmp is TdxFile) then
+          Continue;
+
+        FN2 := GetComponentFieldName(SCmp);
+        if FN2 = '' then Continue;
+        if ColNames.IndexOf(FN2) >= 0 then Continue;
+        ColNames.Add(FN2);
+      end;
+
+      if ColNames.Count = 0 then
+      begin
+        Debug('WPrint dict: у формы ' + SrcFormName + ' нет полей-компонентов');
+        ColNames.Free;
+        Continue;
+      end;
+
+      // один SQL-запрос на все поля объекта
+      SQL := 'select';
+      for y := 0 to ColNames.Count - 1 do
+      begin
+        if y > 0 then SQL := SQL + ',';
+        SQL := SQL + ' [' + ColNames[y] + ']';
+      end;
+      SQL := SQL + ' from [' + SrcFormName + '] where id=' + IntToStr(SId);
+
+      with TdxSQLQuery.Create(SQL) do
+      begin
+        Open;
+        if RecordCount > 0 then
+          for y := 0 to ColNames.Count - 1 do
+          begin
+            SVal := Field[y].AsString;
+            if SVal <> '' then
+              AddObjectMarkers(Dict, DictVals, FN, ColNames[y], SVal);
+          end;
+        Free;
+      end;
+      ColNames.Free;
+    except
+      Debug('WPrint dict: ошибка обработки объекта [' + FN + ']: ' + ExceptionToString(ExceptionType, ExceptionParam));
+      try ColNames.Free; except end;
+    end;
+  end;
+
+  Debug('WPrint dict: словарь собран, маркеров: ' + IntToStr(Dict.Count));
+end;
+procedure ProcessDocument(Doc: Variant; Fm: TdxForm; InHeaders, InControls: Boolean);
+var
+  x, y: Integer;
+  Sec: Variant;
+  Dict, DictVals: TStringList;
+  T0: LongInt;
+begin
+  // словарь замен: все варианты маркеров всех полей и объектов
+  Dict := TStringList.Create;
+  DictVals := TStringList.Create;
+  try
+    T0 := GetTickCount;
+    BuildValueDict(Fm, Dict, DictVals);
+    Debug('WPrint: словарь (поля+объекты+SQL): ' + IntToStr(GetTickCount - T0) + ' мс');
+
+    T0 := GetTickCount;
+    // один проход по XML-привязанным контролам: в основном тексте и в колонтитулах
+    FillXMLControls(Doc.Content, Dict, DictVals);
+    if InHeaders then
+    begin
+      for x := 1 to Doc.Sections.Count do
+      begin
+        Sec := Doc.Sections.Item(x);
+        for y := 1 to 3 do
+        begin
+          FillXMLControls(Sec.Headers.Item(y).Range, Dict, DictVals);
+          FillXMLControls(Sec.Footers.Item(y).Range, Dict, DictVals);
+        end;
+      end;
+    end;
+    Debug('WPrint: проход по контролам: ' + IntToStr(GetTickCount - T0) + ' мс');
+  finally
+    Dict.Free;
+    DictVals.Free;
+  end;
+end;
+
+procedure WordPrintTemplate(const TplName, OutName, OutFolder: String;
+  InHeaders, InControls, OpenAfter: Boolean);
+var
+  WordApp, Doc: Variant;
+  tplPath, outPath, outDir, ext, FName: String;
+  i, p, T0, T1: Integer;
+begin
+  ShowProgress('Формирование документа...');
+  T0 := GetTickCount;
+  try
+    tplPath := GetTemplatesDir + TplName;
+    if not FileExists(tplPath) then
+    begin
+      CloseProgress;
+      MsgBox('Внимание', 'Шаблон не найден: ' + tplPath);
+      Exit;
+    end;
+
+    // папка результата
+    if Trim(OutFolder) = '' then
+      outDir := GetTemplatesDir
+    else
+      outDir := Trim(OutFolder);
+    if Copy(outDir, Length(outDir), 1) <> '\' then
+      outDir := outDir + '\';
+
+    // имя файла результата (может содержать [Поля])
+    FName := Trim(OutName);
+    if FName = '' then
+      FName := TplName;
+    if (Pos('[', FName) > 0) then
+      try
+        FName := VarToStr(EvalExpr(FName, Self));
+      except
+      end;
+    // убираем недопустимые символы имени файла
+    for i := 1 to Length(FName) do
+      if Pos(FName[i], '\/:*?"<>|') > 0 then
+        FName[i] := '-';
+    // расширение от шаблона
+    ext := '.docx';
+    p := Pos('.', TplName);
+    if p > 0 then
+      ext := Copy(TplName, p, Length(TplName));
+    if Pos('.', FName) = 0 then
+      FName := FName + ext;
+
+    outPath := outDir + FName;
+    Debug('WPrint: шаг 1: outPath=' + outPath);
+
+    // копия шаблона -> файл результата (перезаписываем)
+    Debug('WPrint: шаг 2a: копирование шаблона');
+    if FileExists(outPath) then
+    begin
+      Debug('WPrint: шаг 2c: удаляем старый файл');
+      DeleteFile(outPath);
+    end;
+    if not CopyFile(tplPath, outPath, [cffOverwriteFile, cffCreateDestDirectory]) then
+      Debug('WPrint: CopyFile вернул False');
+    Debug('WPrint: шаг 2: копия шаблона создана');
+    Debug('WPrint: проверка: файл существует = ' + IntToStr(integer(FileExists(outPath))));
+
+    // подключаемся к Word
+    T1 := GetTickCount;
+    WordApp := GetWordApp(1);
+    if VarIsNull(WordApp) then
+      WordApp := CreateOleObject('Word.Application');
+    if VarIsNull(WordApp) then
+    begin
+      CloseProgress;
+      MsgBox('Внимание', 'Не удалось подключиться к Microsoft Word.');
+      Exit;
+    end;
+    Debug('WPrint: подключение к Word: ' + IntToStr(GetTickCount - T1) + ' мс');
+
+    // открываем копию
+    Debug('WPrint: шаг 3: открываем документ в Word');
+    Debug('WPrint: подготовка (копия, имя): ' + IntToStr(GetTickCount - T1) + ' мс');
+    Doc := WordApp.Documents.Open(outPath, False, False, False);
+    Debug('WPrint: Documents.Open: ' + IntToStr(GetTickCount - T1) + ' мс');
+    if VarIsNull(Doc) then
+    begin
+      CloseProgress;
+      MsgBox('Внимание', 'Не удалось открыть документ: ' + outPath);
+      Exit;
+    end;
+    Doc.ActiveWindow.Visible := False;
+    // отключаем перерисовку Word на время обработки
+    try WordApp.ScreenUpdating := False; except end;
+    Application.ProcessMessages;
+
+    // подставляем значения
+    Debug('WPrint: шаг 4: замена маркеров');
+    Debug('WPrint: замена маркеров: начато');
+    ProcessDocument(Doc, Self, InHeaders, InControls);
+    Debug('WPrint: замена маркеров: ' + IntToStr(GetTickCount - T1) + ' мс');
+    Debug('WPrint: шаг 5: замены завершены');
+
+    // сохраняем
+    Doc.Save;
+    Debug('WPrint: шаг 6: документ сохранен');
+
+    // включаем перерисовку обратно
+    try WordApp.ScreenUpdating := True; except end;
+
+    CloseProgress;
+
+    // показываем документ
+    if OpenAfter then
+    begin
+      Doc.ActiveWindow.Visible := True;
+      Doc.Application.Activate;
+    end
+    else
+    begin
+      Doc.Close(False);
+      MsgBox('Информация', 'Документ сформирован: ' + outPath);
+    end;
+
+  except
+    CloseProgress;
+    Debug('WPrint: ИСКЛЮЧЕНИЕ: тип=' + IntToStr(integer(ExceptionType)) + '; ' + ExceptionParam);
+    try WordApp.ScreenUpdating := True; except end;
+    MsgBox('Внимание', 'Ошибка при формировании документа: ' + ExceptionToString(ExceptionType, ExceptionParam));
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+// ДЕЙСТВИЕ 2: ПОСТОБРАБОТКА ПОСЛЕ ПЕЧАТИ DX
+// -----------------------------------------------------------------------------
+
+function FindWordPostData(Fm: TObject): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := High(WordPostArr) downto 0 do
+  begin
+    if (WordPostArr[i].Fm = Fm) and not WordPostArr[i].Skip then
+    begin
+      Result := i;
+      Exit;
+    end;
+  end;
+end;
+
+procedure DoReplace(const FileName: String; Fm: TdxForm;
+  InHeaders, SaveDoc, Finish: Boolean);
+var
+  WordApp: Variant;
+  Dict, DictVals: TStringList;
+  s, h, T0: Integer;
+  Sec: Variant;
+  Ok: Boolean;
+begin
+  if VarIsNull(PostDoc) then
+  begin
+    WordApp := GetWordApp(10);
+    if VarIsNull(WordApp) then Exit;
+    PostDoc := GetActiveDocument(WordApp, FileName);
+    if VarIsNull(PostDoc) then Exit;
+  end;
+  Ok := False;
+  try
+    PostDoc.ActiveWindow.Visible := False;
+    if ProgressWnd = nil then
+      ShowProgress('Идет обработка документа...');
+
+    T0 := GetTickCount;
+    // словарь замен: все варианты маркеров всех полей и объектов
+    Dict := TStringList.Create;
+    DictVals := TStringList.Create;
+    try
+      BuildValueDict(Fm, Dict, DictVals);
+      Debug('WPost: словарь: ' + IntToStr(GetTickCount - T0) + ' мс');
+
+      // быстрый режим: один проход по XML-привязанным контролам
+      T0 := GetTickCount;
+      FillXMLControls(PostDoc.Content, Dict, DictVals);
+      FillXMLControlsInShapes(PostDoc.Shapes, Dict, DictVals);
+      if InHeaders then
+        for s := 1 to PostDoc.Sections.Count do
+        begin
+          Sec := PostDoc.Sections.Item(s);
+          for h := 1 to 3 do
+          begin
+            FillXMLControls(Sec.Headers.Item(h).Range, Dict, DictVals);
+            FillXMLControls(Sec.Footers.Item(h).Range, Dict, DictVals);
+            // фигуры (Надпись и т.п.) внутри колонтитулов
+            FillXMLControlsInShapes(Sec.Headers.Item(h).Shapes, Dict, DictVals);
+            FillXMLControlsInShapes(Sec.Footers.Item(h).Shapes, Dict, DictVals);
+          end;
+        end;
+      Debug('WPost: XML-контролы: ' + IntToStr(GetTickCount - T0) + ' мс');
+    finally
+      Dict.Free;
+      DictVals.Free;
+    end;
+
+    if SaveDoc then PostDoc.Save;
+    Ok := True;
+  finally
+    if Finish or not Ok then
+    begin
+      CloseProgress;
+      if not VarIsNull(PostDoc) then
+      begin
+        PostDoc.ActiveWindow.Visible := True;
+        PostDoc.Application.Activate;
+        PostDoc := Null;
+      end;
+    end;
+  end;
+end;
+
+procedure PostPrintForm(Sender: TObject; Action: TPrintAction; const SourceName, FieldName: String; var Value: String; var Accept: Boolean);
+var
+  n: Integer;
+begin
+  n := FindWordPostData(Sender);
+  WordPostArr[n].Skip := True;
+  if WordPostArr[n].PrintEvent <> nil then
+    WordPostArr[n].PrintEvent(Sender, Action, SourceName, FieldName, Value, Accept);
+  WordPostArr[n].Skip := False;
+  if Action = paBeginPrint then
+  begin
+    if Utf8CompareText(SourceName, GetTemplatesDir + WordPostArr[n].TplName) = 0 then
+      PostProcessPrint := True;
+    PostTemplateName := SourceName;
+  end
+  else if Action = paAfterOpenFile then
+  begin
+    if PostProcessPrint then
+      with WordPostArr[n] do
+        if Utf8CompareText(PostTemplateName, GetTemplatesDir + TplName) = 0 then
+        begin
+          DoReplace(SourceName, Sender as TdxForm, InHeaders, SaveDoc, Finish);
+        end;
+  end
+  else if Action = paEndPrint then
+  begin
+    if Utf8CompareText(SourceName, GetTemplatesDir + WordPostArr[n].TplName) = 0 then
+      PostProcessPrint := False;
+  end;
+end;
+
+procedure PostDestroyForm(Sender: TObject);
+var
+  i: Integer;
+begin
+  i := FindWordPostData(Sender);
+  with WordPostArr[i] do
+  begin
+    Fm := nil;
+    if DestroyEvent <> nil then DestroyEvent(Sender);
+  end;
+end;
+
+procedure WordReplaceInHeaders(const TplName: String;
+  InHeaders, SaveDoc, Finish: Boolean);
+var
+  n: Integer;
+  Data: TWordPostData;
+begin
+  Data.Fm := Self;
+  Data.PrintEvent := Self.OnPrint;
+  Data.DestroyEvent := Self.OnDestroy;
+  Self.OnPrint := @PostPrintForm;
+  Self.OnDestroy := @PostDestroyForm;
+  Data.TplName := TplName;
+  Data.InHeaders := InHeaders;
+  Data.SaveDoc := SaveDoc;
+  Data.Finish := Finish;
+
+  n := Length(WordPostArr);
+  SetLength(WordPostArr, n + 1);
+  WordPostArr[n] := Data;
+
+  PostDoc := Null;
+end;

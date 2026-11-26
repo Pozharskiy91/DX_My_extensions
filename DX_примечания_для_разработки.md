@@ -134,6 +134,21 @@ DX поддерживает в `<ui>` действия таблицу `<grid>` �
 
 ---
 
+## Паттерн: постобработка Word через OLE (OnPrint + paAfterOpenFile)
+
+Штатный шаблонизатор DX не подставляет значения в колонтитулы и в content controls, привязанные к custom XML. Решение — расширение `Работа с файлами/Word Постобработка (колонтитулы и поля).epas`:
+- перехват `Self.OnPrint` (цепочка старых обработчиков + флаг Skip), точки: `paBeginPrint` (запомнить шаблон), `paAfterOpenFile` (документ уже открыт в Word — подключиться через `GetActiveOleObject('Word.Application')`), `paEndPrint`;
+- поиск документа: перебор `WordApp.Documents`, сравнение `Doc.FullName` с `GetTemplatesDir + TplName`;
+- замена в колонтитулах: все секции, `Sec.Headers/Footers.Item(1..3)` (обычный/первая/четная), `Range.Find.Execute(Marker, ..., 1, False, Value, 2)` (wdFindContinue, wdReplaceAll);
+- content controls: перебор `Range.ContentControls`, метка = `Ctrl.Title` или `Ctrl.Tag`; если `Ctrl.XMLMapping.IsMapped` — писать в `Ctrl.XMLMapping.CustomXMLNode.Text`, иначе `Ctrl.Range.Text`;
+- значения из записи: `EvalExpr(выражение, Fm)` — форму передавать параметром, `Self` в процедурах модуля недоступен;
+- замена в `.Replace` Word ограничена 255 символами;
+- цепочка нескольких действий: флажок «Конец обработки» (Finish) только на последнем — окно Word скрыто до конца всех обработок.
+
+Wiki: https://wiki.mydataexpress.ru/rukovodstvo_po_polzovaniu_dx:shablony#master_shablonov
+
+---
+
 ## 5. Известные файлы и их состояние
 
 | Файл | Состояние |
@@ -143,7 +158,11 @@ DX поддерживает в `<ui>` действия таблицу `<grid>` �
 | `DX_selection_extensions/kok80-poisk3.00.epas` | Полный оригинал 3.00 (3999 строк), база для правок |
 | `DX_My_extensions/Работа с файлами/ImportDataInspection.epas` | 3.1: флаг `OnlyErrorsMode` для фильтра ошибок + поиск в окне «Найти и заменить» (CustomFilter `==`, fallback скан по RecId), отладка убрана |
 
-| `DX_selection_extensions/Настройки CustomizationLbl.epas` | 1.5.0: настройки через таблицу `<grid>` (Надпись/Кнопка -> TdxGroupBox/TdxPanel), ShowSettings/SetupPair через TWinControl |
+| `DX_My_extensions/Работа с файлами/Word Шаблоны (печать и постобработка).epas` | 1.1: объединенный модуль, ДВА действия: (1) печать по шаблону из кнопки — копия шаблона -> файл результата (имя с [Полями]), замена [Имя поля] во всем документе/колонтитулах/content controls (XML-mapped через CustomXMLNode.Text); (2) постобработка после штатной печати DX — перехват OnPrint + paAfterOpenFile, метка (Title/Tag контрола) -> выражение; общие помощники: ReplaceInRange, FillContentControls(ByTitle), ReplaceInAllHeaders, StrReplaceAll, GetWordApp/GetActiveDocument |
+| `DX_selection_extensions/Настройки CustomizationLbl_1.4.2.epas` | Старая версия (не менять) — пользователь попросил сохранить |
+| `DX_selection_extensions/Настройки CustomizationLbl.epas` | 1.5.0: настройки через таблицу `<grid>` (Надпись -> TdxGroupBox/TdxPanel), ShowSettings/SetupPair через TWinControl |
+| `DX_selection_extensions/Настройки CustomizationLbl_1.4.2.epas` | Старая версия (не менять) — пользователь попросил сохранить |
+| `DX_selection_extensions/Настройки CustomizationLbl_1.5.0.epas` | 1.6.0 (внутри): таблица + стиль ссылки (дефолт LabelLinkBlue_1.1: clBlue/$FF8B2D — в TColor BGR это 2 оттенка синего), clNone из `<color>` обрабатывать через ColorSafe, отложенная покраска таймером (DX переопределяет оформление после открытия формы) |
 | `DX_My_extensions/Настройки ограничений/Индивидуальная видимость_доступность компонентов.epas` | Образец ui-паттерна `<grid>` + `<component>` + `<ifgrid>` |
 | `DX_My_extensions/Оформление и темы/Закладки CustomizationBookmark.epas` | Образец grid-настроек (TabsGrid) |
 
@@ -165,3 +184,17 @@ DX поддерживает в `<ui>` действия таблицу `<grid>` �
 3. Компиляция проверяется **только пользователем в DataExpress** — нельзя проверить локально; писать код аккуратно, литералы с кавычками перепроверять посимвольно.
 4. После правок давать пользователю сценарий проверки (что кликнуть, что ожидать, что смотреть в Debug).
 5. Отладочный вывод добавлять через `Debug('Префикс: ...')` и убирать после стабилизации.
+
+## 8. Синтаксис файловых функций DX (проверено на CopyFile)
+
+Справочник: wiki.mydataexpress.ru, раздел 5. API -> Процедуры и функции -> Файловая система (api:procs:fs:*).
+
+``pascal
+function CopyFile(const SrcFilename, DestFilename: string; Flags: TCopyFileFlags): boolean
+``
+Flags - МНОЖЕСТВО TCopyFileFlags, передавать литералом: [cffOverwriteFile, cffCreateDestDirectory] (еще есть cffPreserveTime). НЕ integer, НЕ Boolean - иначе 'Type mismatch' / 'Invalid number of parameters'.
+Прочее: DeleteFile(FileName), FileExists(FileName): boolean, GetTemplatesDir, GetTempDir, GetOutputDir.
+
+Почему важно: на вызов CopyFile ушло 4 итерации (2 параметра -> Boolean -> 0 -> множество). Перед использованием малоизвестных встроенных функций DX сверять сигнатуру на wiki (api:procs:*).
+
+Resherved words DX-скрипта, которые нельзя использовать как имена свойств OLE-объектов через точку: Type, End (например Shape.Type, Range.End - ошибка компиляции; обходить через try/except-перебор и Collapse/Start). Переменную не называть pos (конфликт с функцией Pos).
